@@ -107,3 +107,35 @@ convenzioni: nessun `tag`/`class` nello schema (Horizon applica da solo la class
 nostra), CSS in `{% stylesheet %}` così viene emesso una volta sola per tutto il
 tema invece che a ogni istanza, e dimensione del titolo in px perché le classi
 `.h1`/`.h2`/`.h3` esistono in Dawn ma non in Horizon.
+
+## Blocco AI (percorso Sidekick)
+
+`blocks/ai_gen_block_58478e9.liquid` è il blocco generato da Sidekick nel tema
+Horizon 4.1.5.02, con il corpo riscritto. Gli ID delle impostazioni sono
+invariati rispetto alla generazione originale (gli slot passano da 6 a 10), così
+i contenuti già configurati non si perdono.
+
+Motivo di questo percorso: sui temi di questo store i file `blocks/ai_gen_*`
+hanno attraversato tutti gli aggiornamenti (4.1.4.09 -> 4.1.4.10 -> 4.1.5.01 ->
+4.1.5.02), e in 4.1.5.01 sono stati riscritti 94 secondi dopo i file base del
+tema, cioè ri-applicati come passaggio a sé dopo l'aggiornamento. Tutto sta in
+un unico file proprio per restare una sola unità che viaggia negli aggiornamenti:
+per questo gli slot sono fissi e non blocchi annidati, che avrebbero richiesto un
+secondo file non coperto da quel meccanismo.
+
+Correzioni rispetto al codice generato:
+
+| Problema nel codice generato | Correzione |
+|---|---|
+| `src="{{ video.sources[1].url }}"`: vuoto se il video ha una sola sorgente | sorgente scelta da larghezza card e DPR |
+| `preventDefault` su `touchmove` globale: bloccava lo scroll verticale su mobile | scroll-snap nativo, nessun preventDefault |
+| `currentX` non azzerato: salto di slide al semplice click | nessuno stato di drag da azzerare |
+| `slidesPerView` 1.5 produceva un indice frazionario | navigazione per posizione, non per indice |
+| tutti i video con `src` e `preload="metadata"` al caricamento | sorgente agganciata all'ingresso nel viewport |
+| nessun listener di resize | ricalcolo su resize e orientationchange |
+| larghezza mobile senza `- 1` nella formula | formula uniforme sui tre breakpoint |
+| audio restava "attivo" dopo l'uscita dallo schermo | si rimuta all'uscita |
+| `aria-label` in inglese | etichette in italiano |
+
+NON chiedere a Sidekick di modificare questo blocco: rigenerandolo sovrascrive
+il codice.

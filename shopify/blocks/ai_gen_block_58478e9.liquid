@@ -1,0 +1,1523 @@
+{% doc %}
+  @prompt
+    Crea un carosello orizzontale di video verticali in formato 9:16, stile reels di Instagram.
+    
+    Ogni video è una slide ripetibile (blocchi annidati, non slot fissi) con: video caricato dalla libreria, immagine di copertina opzionale, titolo, testo breve, valutazione a stelle da 0 a 5 con mezze stelle, link e testo del pulsante.
+    
+    Comportamento: i video partono in autoplay senza audio solo quando entrano nel viewport e vanno in pausa quando escono; un pulsante attiva l'audio e solo un video alla volta può avere l'audio attivo; un pulsante mette in play/pausa; cliccando sul video si mette in play/pausa. I video vanno caricati in lazy, non tutti all'avvio.
+    
+    Layout: 4 video affiancati su desktop, 3 su tablet, 1,2 su mobile in modo che si intraveda la card successiva. Scorrimento con swipe su touch e trascinamento col mouse, più frecce laterali e puntini di navigazione.
+    
+    Impostazioni: formato card (9:16, 4:5, 1:1, 16:9), numero di video visibili per desktop/tablet/mobile, spazio tra le card, raggio degli angoli, sfumatura scura in basso per la leggibilità del testo, colori di testo, stelle, frecce e pulsante, spaziatura sopra e sotto.
+    
+    Usa solo CSS e JavaScript nativi, nessuna libreria esterna. Testo dei pulsanti accessibile per screen reader e nessun autoplay se l'utente ha attivato la riduzione delle animazioni.
+{% enddoc %}
+
+{% comment %}
+  Implementazione rivista. Correzioni rispetto alla prima generazione:
+    - la sorgente del video viene scelta in base alla larghezza reale della card
+      e al DPR, invece di prendere sempre sources[1] (che è vuoto quando il
+      video ha una sola sorgente, e lasciava src="")
+    - lo scorrimento usa scroll-snap nativo invece di un transform manuale: su
+      mobile non serve piu preventDefault sul touchmove, che bloccava lo scroll
+      verticale della pagina
+    - niente indice frazionario con 1,2 video per vista
+    - niente salto di slide al click (currentX non azzerato)
+    - i video vengono agganciati solo quando entrano nel viewport
+    - ricalcolo su resize e cambio di orientamento
+    - l'audio si rimuta quando la card esce dallo schermo
+  Gli ID delle impostazioni sono invariati, gli slot passano da 6 a 10.
+{% endcomment %}
+
+{% assign ai_gen_id = block.id | replace: '_', '' | downcase %}
+
+{% style %}
+  .aivc-{{ ai_gen_id }} {
+    display: block;
+    width: 100%;
+    position: relative;
+    padding-top: var(--aivc-pt-m);
+    padding-bottom: var(--aivc-pb-m);
+  }
+
+  .aivc-{{ ai_gen_id }} .aivc__viewport {
+    position: relative;
+  }
+
+  .aivc-{{ ai_gen_id }} .aivc__track {
+    display: flex;
+    gap: var(--aivc-gap-m);
+    margin: 0;
+    padding: 0 0 2px;
+    list-style: none;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scroll-behavior: smooth;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .aivc-{{ ai_gen_id }} .aivc__track::-webkit-scrollbar {
+    display: none;
+  }
+
+  .aivc-{{ ai_gen_id }}.is-dragging .aivc__track {
+    scroll-behavior: auto;
+    scroll-snap-type: none;
+    cursor: grabbing;
+  }
+
+  .aivc-{{ ai_gen_id }}.is-dragging .aivc__card * {
+    pointer-events: none;
+  }
+
+  .aivc-{{ ai_gen_id }} .aivc__slide {
+    flex: 0 0 var(--aivc-slide-w-m);
+    width: var(--aivc-slide-w-m);
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+  }
+
+  .aivc-{{ ai_gen_id }} .aivc__card {
+    position: relative;
+    display: block;
+    width: 100%;
+    aspect-ratio: var(--aivc-ratio);
+    overflow: hidden;
+    border-radius: var(--aivc-radius);
+    background-color: #000;
+  }
+
+  .aivc-{{ ai_gen_id }} .aivc__media,
+  .aivc-{{ ai_gen_id }} .aivc__media video,
+  .aivc-{{ ai_gen_id }} .aivc__media img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+    border: 0;
+  }
+
+  .aivc-{{ ai_gen_id }} .aivc__poster {
+    z-index: 1;
+    transition: opacity 0.35s ease;
+  }
+
+  .aivc-{{ ai_gen_id }} .aivc__card.is-playing .aivc__poster {
+    opacity: 0;
+  }
+
+  .aivc-{{ ai_gen_id }} .aivc__overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+    background: var(--aivc-scrim);
+  }
+
+  .aivc-{{ ai_gen_id }} .aivc__hit {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    border: 0;
+    padding: 0;
+    background: transparent;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  .aivc-{{ ai_gen_id }} .aivc__controls {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    z-index: 5;
+    display: flex;
+    gap: 8px;
+  }
+
+  .aivc-{{ ai_gen_id }} .aivc__ctrl {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background-color: rgba(0, 0, 0, 0.6);
+    color: #fff;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    -webkit-appearance: none;
+    appearance: none;
+    transition: background-color 0.2s ease, transform 0.15s ease;
+  }
+
+  .aivc-{{ ai_gen_id }} .aivc__ctrl:hover {
+    background-color: rgba(0, 0, 0, 0.85);
+  }
+
+  .aivc-{{ ai_gen_id }} .aivc__ctrl:active {
+    transform: scale(0.92);
+  }
+
+  .aivc-{{ ai_gen_id }} .aivc__ctrl svg {
+    width: 20px;
+    height: 20px;
+    pointer-events: none;
+  }
+
+  .aivc-{{ ai_gen_id }} .aivc__ctrl .aivc-icon--on,
+  .aivc-{{ ai_gen_id }} .aivc__ctrl[aria-pressed='true'] .aivc-icon--off {
+    display: none;
+  }
+
+  .aivc-{{ ai_gen_id }} .aivc__ctrl[aria-pressed='true'] .aivc-icon--on {
+    display: block;
+  }
+
+  .aivc-{{ ai_gen_id }} .aivc__content {
+    position: absolute;
+    inset: auto 0 0 0;
+    z-index: 4;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 20px;
+    color: var(--aivc-text-color);
+    pointer-events: none;
+  }
+
+  .aivc-{{ ai_gen_id }} .aivc__content > * {
+    pointer-events: auto;
+  }
+
+  .aivc-{{ ai_gen_id }} .aivc__content:empty {
+    display: none;
+  }
+
+  .aivc-{{ ai_gen_id }} .aivc__title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.25;
+    color: inherit;
+  }
+
+  .aivc-{{ ai_gen_id }} .aivc__description {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.4;
+    color: inherit;
+    opacity: 0.9;
+  }
+
+  .aivc-{{ ai_gen_id }} .aivc__stars {
+    position: relative;
+    display: inline-flex;
+    line-height: 0;
+  }
+
+  .aivc-{{ ai_gen_id }} .aivc__stars-row {
+    display: flex;
+    gap: 2px;
+  }
+
+  .aivc-{{ ai_gen_id }} .aivc__stars-row--fill {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    width: var(--aivc-rating);
+  }
+
+  .aivc-{{ ai_gen_id }} .aivc__stars svg {
+    flex: none;
+    width: 16px;
+    height: 16px;
+  }
+
+  .aivc-{{ ai_gen_id }} .aivc__stars-row--empty svg {
+    fill: rgba(255, 255, 255, 0.3);
+  }
+
+  .aivc-{{ ai_gen_id }} .aivc__stars-row--fill svg {
+    fill: var(--aivc-star-color);
+  }
+
+  .aivc-{{ ai_gen_id }} .aivc__cta {
+    display: inline-block;
+    margin-top: 4px;
+    padding: 10px 20px;
+    border-radius: 8px;
+    background-color: var(--aivc-btn-bg);
+    color: var(--aivc-btn-color);
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1;
+    text-decoration: none;
+    transition: opacity 0.2s ease;
+  }
+
+  .aivc-{{ ai_gen_id }} .aivc__cta:hover {
+    opacity: 0.9;
+  }
+
+  .aivc-{{ ai_gen_id }} .aivc__arrow {
+    position: absolute;
+    top: 50%;
+    z-index: 6;
+    display: none;
+    place-items: center;
+    width: 48px;
+    height: 48px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background-color: var(--aivc-arrow-bg);
+    color: var(--aivc-arrow-color);
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+    transform: translateY(-50%);
+    transition: opacity 0.2s ease;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  .aivc-{{ ai_gen_id }} .aivc__arrow:hover:not([disabled]) {
+    opacity: 0.8;
+  }
+
+  .aivc-{{ ai_gen_id }} .aivc__arrow[disabled] {
+    opacity: 0.3;
+    cursor: default;
+  }
+
+  .aivc-{{ ai_gen_id }} .aivc__arrow svg {
+    width: 24px;
+    height: 24px;
+    pointer-events: none;
+  }
+
+  .aivc-{{ ai_gen_id }} .aivc__arrow--prev {
+    left: 8px;
+  }
+
+  .aivc-{{ ai_gen_id }} .aivc__arrow--next {
+    right: 8px;
+  }
+
+  .aivc-{{ ai_gen_id }}.show-arrows-mobile .aivc__arrow {
+    display: grid;
+  }
+
+  .aivc-{{ ai_gen_id }} .aivc__dots {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 24px;
+  }
+
+  .aivc-{{ ai_gen_id }} .aivc__dot {
+    width: 8px;
+    height: 8px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background-color: var(--aivc-arrow-color);
+    opacity: 0.35;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+
+  .aivc-{{ ai_gen_id }} .aivc__dot[aria-current='true'] {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+
+  .aivc-{{ ai_gen_id }} .aivc__ctrl:focus-visible,
+  .aivc-{{ ai_gen_id }} .aivc__hit:focus-visible,
+  .aivc-{{ ai_gen_id }} .aivc__arrow:focus-visible,
+  .aivc-{{ ai_gen_id }} .aivc__dot:focus-visible,
+  .aivc-{{ ai_gen_id }} .aivc__cta:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 3px;
+  }
+
+  @media screen and (min-width: 750px) {
+    .aivc-{{ ai_gen_id }} {
+      padding-top: var(--aivc-pt);
+      padding-bottom: var(--aivc-pb);
+    }
+
+    .aivc-{{ ai_gen_id }} .aivc__track {
+      gap: var(--aivc-gap);
+    }
+
+    .aivc-{{ ai_gen_id }} .aivc__slide {
+      flex-basis: var(--aivc-slide-w-t);
+      width: var(--aivc-slide-w-t);
+    }
+
+    .aivc-{{ ai_gen_id }} .aivc__title {
+      font-size: 18px;
+    }
+
+    .aivc-{{ ai_gen_id }} .aivc__description {
+      font-size: 14px;
+    }
+
+    .aivc-{{ ai_gen_id }} .aivc__arrow {
+      display: grid;
+    }
+
+    .aivc-{{ ai_gen_id }} .aivc__arrow--prev {
+      left: 16px;
+    }
+
+    .aivc-{{ ai_gen_id }} .aivc__arrow--next {
+      right: 16px;
+    }
+  }
+
+  @media screen and (min-width: 990px) {
+    .aivc-{{ ai_gen_id }} .aivc__slide {
+      flex-basis: var(--aivc-slide-w);
+      width: var(--aivc-slide-w);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .aivc-{{ ai_gen_id }} .aivc__track {
+      scroll-behavior: auto;
+    }
+  }
+{% endstyle %}
+
+{%- liquid
+  assign ratio = '9 / 16'
+  case block.settings.aspect_ratio
+    when '4:5'
+      assign ratio = '4 / 5'
+    when '1:1'
+      assign ratio = '1 / 1'
+    when '16:9'
+      assign ratio = '16 / 9'
+  endcase
+
+  assign gap = block.settings.card_gap
+  assign per_d = block.settings.slides_desktop
+  assign per_t = block.settings.slides_tablet
+  assign per_m = block.settings.slides_mobile
+
+  assign scrim = 'none'
+  if block.settings.enable_gradient
+    assign scrim = 'linear-gradient(to bottom, transparent 50%, rgba(0, 0, 0, ' | append: block.settings.gradient_opacity | append: '))'
+  endif
+-%}
+
+<video-carousel-ai
+  class="aivc-{{ ai_gen_id }} aivc{% if block.settings.show_arrows_mobile %} show-arrows-mobile{% endif %}"
+  data-autoplay="{{ block.settings.autoplay }}"
+  style="
+    --aivc-pt: {{ block.settings.spacing_top }}px;
+    --aivc-pb: {{ block.settings.spacing_bottom }}px;
+    --aivc-pt-m: {{ block.settings.spacing_top | times: 0.6 | round: 0 }}px;
+    --aivc-pb-m: {{ block.settings.spacing_bottom | times: 0.6 | round: 0 }}px;
+    --aivc-gap: {{ gap }}px;
+    --aivc-gap-m: {{ gap | times: 0.75 | round: 0 }}px;
+    --aivc-slide-w: calc((100% - {{ per_d | minus: 1 }} * {{ gap }}px) / {{ per_d }});
+    --aivc-slide-w-t: calc((100% - {{ per_t | minus: 1 }} * {{ gap }}px) / {{ per_t }});
+    --aivc-slide-w-m: calc((100% - {{ per_m | minus: 1 }} * {{ gap | times: 0.75 | round: 0 }}px) / {{ per_m }});
+    --aivc-ratio: {{ ratio }};
+    --aivc-radius: {{ block.settings.card_border_radius }}px;
+    --aivc-scrim: {{ scrim }};
+    --aivc-text-color: {{ block.settings.text_color }};
+    --aivc-star-color: {{ block.settings.star_color }};
+    --aivc-btn-bg: {{ block.settings.button_background }};
+    --aivc-btn-color: {{ block.settings.button_text_color }};
+    --aivc-arrow-bg: {{ block.settings.arrow_background }};
+    --aivc-arrow-color: {{ block.settings.arrow_color }};
+  "
+  {{ block.shopify_attributes }}
+>
+  <div class="aivc__viewport">
+    <button type="button" class="aivc__arrow aivc__arrow--prev" data-aivc-prev aria-label="Video precedente">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <polyline points="15 18 9 12 15 6"></polyline>
+      </svg>
+    </button>
+
+    <ul class="aivc__track" data-aivc-track role="list">
+      {%- for i in (1..10) -%}
+        {%- liquid
+          assign vkey = 'video_' | append: i
+          assign pkey = 'poster_' | append: i
+          assign tkey = 'title_' | append: i
+          assign dkey = 'description_' | append: i
+          assign rkey = 'rating_' | append: i
+          assign lkey = 'cta_link_' | append: i
+          assign ckey = 'cta_text_' | append: i
+
+          assign video = block.settings[vkey]
+          assign poster = block.settings[pkey]
+          assign title = block.settings[tkey]
+          assign description = block.settings[dkey]
+          assign rating = block.settings[rkey]
+          assign cta_link = block.settings[lkey]
+          assign cta_text = block.settings[ckey]
+
+          if poster == blank and video != blank
+            assign poster = video.preview_image
+          endif
+        -%}
+
+        {%- if video == blank -%}
+          {%- continue -%}
+        {%- endif -%}
+
+        <li class="aivc__slide" data-aivc-slide>
+          <div class="aivc__card" data-aivc-card>
+            <div class="aivc__media">
+              <video
+                data-aivc-video
+                data-aivc-sources='[{% for s in video.sources %}{% unless forloop.first %},{% endunless %}{"url":{{ s.url | json }},"w":{{ s.width | default: 0 | json }},"type":{{ s.mime_type | json }}}{% endfor %}]'
+                {% if poster != blank %}poster="{{ poster | image_url: width: 720 }}"{% endif %}
+                muted
+                loop
+                playsinline
+                preload="none"
+                disablepictureinpicture
+                tabindex="-1"
+                {% if title != blank %}aria-label="{{ title | escape }}"{% endif %}
+              ></video>
+
+              {%- if poster != blank -%}
+                <img
+                  class="aivc__poster"
+                  src="{{ poster | image_url: width: 720 }}"
+                  srcset="{{ poster | image_url: width: 400 }} 400w, {{ poster | image_url: width: 720 }} 720w, {{ poster | image_url: width: 1080 }} 1080w"
+                  sizes="(min-width: 990px) calc(100vw / {{ per_d }}), (min-width: 750px) calc(100vw / {{ per_t }}), calc(100vw / {{ per_m }})"
+                  alt="{{ poster.alt | default: title | escape }}"
+                  width="{{ poster.width }}"
+                  height="{{ poster.height }}"
+                  loading="lazy"
+                >
+              {%- endif -%}
+            </div>
+
+            <div class="aivc__overlay"></div>
+
+            <button type="button" class="aivc__hit" data-aivc-toggle aria-label="Riproduci o metti in pausa il video"></button>
+
+            <div class="aivc__controls">
+              <button type="button" class="aivc__ctrl" data-aivc-play aria-pressed="false" aria-label="Riproduci o metti in pausa">
+                <svg class="aivc-icon--off" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+                <svg class="aivc-icon--on" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <rect x="6" y="4" width="4" height="16"></rect>
+                  <rect x="14" y="4" width="4" height="16"></rect>
+                </svg>
+              </button>
+
+              <button type="button" class="aivc__ctrl" data-aivc-sound aria-pressed="false" aria-label="Attiva o disattiva l'audio">
+                <svg class="aivc-icon--off" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                  <line x1="23" y1="9" x2="17" y2="15"></line>
+                  <line x1="17" y1="9" x2="23" y2="15"></line>
+                </svg>
+                <svg class="aivc-icon--on" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                </svg>
+              </button>
+            </div>
+
+            <div class="aivc__content">
+              {%- if title != blank -%}
+                <p class="aivc__title">{{ title | escape }}</p>
+              {%- endif -%}
+
+              {%- if description != blank -%}
+                <p class="aivc__description">{{ description | escape }}</p>
+              {%- endif -%}
+
+              {%- if rating > 0 -%}
+                {%- assign rating_pct = rating | times: 20 -%}
+                <div class="aivc__stars" style="--aivc-rating: {{ rating_pct }}%;" role="img" aria-label="{{ rating }} stelle su 5">
+                  <div class="aivc__stars-row aivc__stars-row--empty" aria-hidden="true">
+                    {%- for s in (1..5) -%}
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" focusable="false"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                    {%- endfor -%}
+                  </div>
+                  <div class="aivc__stars-row aivc__stars-row--fill" aria-hidden="true">
+                    {%- for s in (1..5) -%}
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" focusable="false"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                    {%- endfor -%}
+                  </div>
+                </div>
+              {%- endif -%}
+
+              {%- if cta_text != blank and cta_link != blank -%}
+                <a class="aivc__cta" href="{{ cta_link }}">{{ cta_text | escape }}</a>
+              {%- endif -%}
+            </div>
+          </div>
+        </li>
+      {%- endfor -%}
+    </ul>
+
+    <button type="button" class="aivc__arrow aivc__arrow--next" data-aivc-next aria-label="Video successivo">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <polyline points="9 18 15 12 9 6"></polyline>
+      </svg>
+    </button>
+  </div>
+
+  {%- if block.settings.show_dots -%}
+    <div class="aivc__dots" data-aivc-dots></div>
+  {%- endif -%}
+</video-carousel-ai>
+
+<script>
+  (function () {
+    if (customElements.get('video-carousel-ai')) return;
+
+    var REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+    function pickSource(sources, targetWidth, probe) {
+      var usable = sources.filter(function (s) {
+        return s.url && (!s.type || probe.canPlayType(s.type) !== '');
+      });
+      if (!usable.length) return null;
+
+      var webm = usable.filter(function (s) { return /webm/.test(s.type || ''); });
+      var pool = webm.length && probe.canPlayType('video/webm') !== '' ? webm : usable;
+
+      pool.sort(function (a, b) { return (a.w || 0) - (b.w || 0); });
+
+      for (var i = 0; i < pool.length; i++) {
+        if ((pool[i].w || 0) >= targetWidth) return pool[i];
+      }
+      return pool[pool.length - 1];
+    }
+
+    class VideoCarouselAI extends HTMLElement {
+      connectedCallback() {
+        this.track = this.querySelector('[data-aivc-track]');
+        if (!this.track) return;
+
+        this.slides = Array.from(this.querySelectorAll('[data-aivc-slide]'));
+        this.autoplay = this.dataset.autoplay === 'true' && !REDUCED.matches;
+
+        this.buildDots();
+        this.bindArrows();
+        this.bindDrag();
+        this.bindCards();
+        this.observe();
+
+        this.onScroll = this.raf(this.update.bind(this));
+        this.track.addEventListener('scroll', this.onScroll, { passive: true });
+
+        this.onResize = this.raf(this.update.bind(this));
+        window.addEventListener('resize', this.onResize, { passive: true });
+        window.addEventListener('orientationchange', this.onResize, { passive: true });
+
+        this.update();
+      }
+
+      disconnectedCallback() {
+        if (this.io) this.io.disconnect();
+        if (this.onScroll) this.track.removeEventListener('scroll', this.onScroll);
+        if (this.onResize) {
+          window.removeEventListener('resize', this.onResize);
+          window.removeEventListener('orientationchange', this.onResize);
+        }
+      }
+
+      raf(fn) {
+        var ticking = false;
+        return function () {
+          if (ticking) return;
+          ticking = true;
+          requestAnimationFrame(function () {
+            ticking = false;
+            fn();
+          });
+        };
+      }
+
+      /* ---------- navigazione ---------- */
+
+      step() {
+        var first = this.slides[0];
+        if (!first) return this.track.clientWidth;
+        var gap = parseFloat(getComputedStyle(this.track).columnGap) || 0;
+        return first.getBoundingClientRect().width + gap;
+      }
+
+      scrollBySlides(direction) {
+        this.track.scrollBy({
+          left: this.step() * direction,
+          behavior: REDUCED.matches ? 'auto' : 'smooth'
+        });
+      }
+
+      bindArrows() {
+        this.prev = this.querySelector('[data-aivc-prev]');
+        this.next = this.querySelector('[data-aivc-next]');
+        if (this.prev) this.prev.addEventListener('click', this.scrollBySlides.bind(this, -1));
+        if (this.next) this.next.addEventListener('click', this.scrollBySlides.bind(this, 1));
+      }
+
+      buildDots() {
+        this.dotsWrap = this.querySelector('[data-aivc-dots]');
+        if (!this.dotsWrap) return;
+        this.dots = this.slides.map(function (slide, i) {
+          var dot = document.createElement('button');
+          dot.type = 'button';
+          dot.className = 'aivc__dot';
+          dot.setAttribute('aria-label', 'Vai al video ' + (i + 1));
+          dot.addEventListener('click', this.goTo.bind(this, i));
+          this.dotsWrap.appendChild(dot);
+          return dot;
+        }, this);
+      }
+
+      goTo(index) {
+        var slide = this.slides[index];
+        if (!slide) return;
+        var trackBox = this.track.getBoundingClientRect();
+        var slideBox = slide.getBoundingClientRect();
+        this.track.scrollTo({
+          left: this.track.scrollLeft + (slideBox.left - trackBox.left),
+          behavior: REDUCED.matches ? 'auto' : 'smooth'
+        });
+      }
+
+      activeIndex() {
+        var left = this.track.getBoundingClientRect().left;
+        for (var i = 0; i < this.slides.length; i++) {
+          if (this.slides[i].getBoundingClientRect().right > left + 2) return i;
+        }
+        return Math.max(this.slides.length - 1, 0);
+      }
+
+      update() {
+        var index = this.activeIndex();
+        if (this.dots) {
+          this.dots.forEach(function (d, i) {
+            d.setAttribute('aria-current', i === index ? 'true' : 'false');
+          });
+        }
+        var max = this.track.scrollWidth - this.track.clientWidth - 1;
+        if (this.prev) this.prev.disabled = this.track.scrollLeft <= 1;
+        if (this.next) this.next.disabled = this.track.scrollLeft >= max;
+      }
+
+      /* ---------- trascinamento col mouse ---------- */
+
+      bindDrag() {
+        var startX = 0;
+        var startScroll = 0;
+        var dragging = false;
+        var moved = false;
+        var self = this;
+
+        this.track.addEventListener('pointerdown', function (e) {
+          if (e.pointerType !== 'mouse' || e.button !== 0) return;
+          dragging = true;
+          moved = false;
+          startX = e.clientX;
+          startScroll = self.track.scrollLeft;
+        });
+
+        this.track.addEventListener('pointermove', function (e) {
+          if (!dragging) return;
+          var delta = e.clientX - startX;
+          if (!moved && Math.abs(delta) > 4) {
+            moved = true;
+            self.classList.add('is-dragging');
+            self.track.setPointerCapture(e.pointerId);
+          }
+          if (moved) self.track.scrollLeft = startScroll - delta;
+        });
+
+        ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (evt) {
+          self.track.addEventListener(evt, function () {
+            if (!dragging) return;
+            dragging = false;
+            if (moved) {
+              self.classList.remove('is-dragging');
+              self.goTo(self.activeIndex());
+            }
+          });
+        });
+      }
+
+      /* ---------- video ---------- */
+
+      loadVideo(card) {
+        var video = card.querySelector('[data-aivc-video]');
+        if (!video || video.dataset.aivcLoaded === 'true') return video;
+
+        var sources;
+        try {
+          sources = JSON.parse(video.dataset.aivcSources || '[]');
+        } catch (e) {
+          sources = [];
+        }
+
+        var target = card.getBoundingClientRect().width * (window.devicePixelRatio || 1);
+        var best = pickSource(sources, target, video);
+        if (!best) return video;
+
+        video.src = best.url;
+        video.dataset.aivcLoaded = 'true';
+        video.load();
+        return video;
+      }
+
+      play(card) {
+        var video = this.loadVideo(card);
+        if (!video) return;
+        video.muted = card.dataset.aivcUnmuted !== 'true';
+        var p = video.play();
+        if (p && p.catch) p.catch(function () {});
+      }
+
+      pause(card) {
+        var video = card.querySelector('[data-aivc-video]');
+        if (video) video.pause();
+      }
+
+      setSound(card, on) {
+        card.dataset.aivcUnmuted = on ? 'true' : 'false';
+
+        if (on) {
+          var self = this;
+          document.querySelectorAll('.aivc [data-aivc-card]').forEach(function (other) {
+            if (other !== card && other.dataset.aivcUnmuted === 'true') self.setSound(other, false);
+          });
+        }
+
+        var video = card.querySelector('[data-aivc-video]');
+        if (video) {
+          video.muted = !on;
+          if (on && video.paused) this.play(card);
+        }
+
+        var btn = card.querySelector('[data-aivc-sound]');
+        if (btn) btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      }
+
+      bindCards() {
+        var self = this;
+
+        this.querySelectorAll('[data-aivc-card]').forEach(function (card) {
+          var video = card.querySelector('[data-aivc-video]');
+          var playBtn = card.querySelector('[data-aivc-play]');
+          var soundBtn = card.querySelector('[data-aivc-sound]');
+          var hit = card.querySelector('[data-aivc-toggle]');
+
+          function toggle() {
+            if (video && !video.paused && !video.ended) {
+              card.dataset.aivcPaused = 'true';
+              self.pause(card);
+            } else {
+              card.dataset.aivcPaused = 'false';
+              self.play(card);
+            }
+          }
+
+          if (hit) hit.addEventListener('click', toggle);
+          if (playBtn) playBtn.addEventListener('click', toggle);
+
+          if (soundBtn) {
+            soundBtn.addEventListener('click', function () {
+              self.setSound(card, card.dataset.aivcUnmuted !== 'true');
+            });
+          }
+
+          if (video) {
+            video.addEventListener('playing', function () {
+              card.classList.add('is-playing');
+              if (playBtn) playBtn.setAttribute('aria-pressed', 'true');
+            });
+            video.addEventListener('pause', function () {
+              if (playBtn) playBtn.setAttribute('aria-pressed', 'false');
+            });
+          }
+        });
+      }
+
+      observe() {
+        var self = this;
+
+        this.io = new IntersectionObserver(
+          function (entries) {
+            entries.forEach(function (entry) {
+              var card = entry.target;
+              if (entry.isIntersecting) {
+                self.loadVideo(card);
+                if (self.autoplay && card.dataset.aivcPaused !== 'true') self.play(card);
+              } else {
+                self.pause(card);
+                if (card.dataset.aivcUnmuted === 'true') self.setSound(card, false);
+              }
+            });
+          },
+          { threshold: 0.55 }
+        );
+
+        this.querySelectorAll('[data-aivc-card]').forEach(function (card) {
+          self.io.observe(card);
+        });
+      }
+    }
+
+    customElements.define('video-carousel-ai', VideoCarouselAI);
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "Video carousel",
+  "tag": null,
+  "settings": [
+    {
+      "type": "header",
+      "content": "Layout"
+    },
+    {
+      "type": "select",
+      "id": "aspect_ratio",
+      "label": "Formato card",
+      "options": [
+        {
+          "value": "9:16",
+          "label": "9:16 (verticale, reels)"
+        },
+        {
+          "value": "4:5",
+          "label": "4:5"
+        },
+        {
+          "value": "1:1",
+          "label": "1:1 (quadrato)"
+        },
+        {
+          "value": "16:9",
+          "label": "16:9 (orizzontale)"
+        }
+      ],
+      "default": "9:16"
+    },
+    {
+      "type": "range",
+      "id": "slides_desktop",
+      "label": "Video visibili su desktop",
+      "min": 1,
+      "max": 6,
+      "step": 1,
+      "default": 4
+    },
+    {
+      "type": "range",
+      "id": "slides_tablet",
+      "label": "Video visibili su tablet",
+      "min": 1,
+      "max": 5,
+      "step": 1,
+      "default": 3
+    },
+    {
+      "type": "range",
+      "id": "slides_mobile",
+      "label": "Video visibili su mobile",
+      "min": 1,
+      "max": 3,
+      "step": 0.1,
+      "default": 1.2,
+      "info": "Un valore decimale (es. 1,2) fa intravedere la card successiva."
+    },
+    {
+      "type": "range",
+      "id": "card_gap",
+      "label": "Spazio tra le card",
+      "min": 0,
+      "max": 40,
+      "step": 4,
+      "unit": "px",
+      "default": 16
+    },
+    {
+      "type": "range",
+      "id": "card_border_radius",
+      "label": "Raggio angoli",
+      "min": 0,
+      "max": 40,
+      "step": 2,
+      "unit": "px",
+      "default": 12
+    },
+    {
+      "type": "range",
+      "id": "spacing_top",
+      "label": "Spazio sopra",
+      "min": 0,
+      "max": 100,
+      "step": 4,
+      "unit": "px",
+      "default": 40
+    },
+    {
+      "type": "range",
+      "id": "spacing_bottom",
+      "label": "Spazio sotto",
+      "min": 0,
+      "max": 100,
+      "step": 4,
+      "unit": "px",
+      "default": 40
+    },
+    {
+      "type": "header",
+      "content": "Riproduzione"
+    },
+    {
+      "type": "checkbox",
+      "id": "autoplay",
+      "label": "Avvia i video quando sono visibili",
+      "default": true,
+      "info": "Sempre senza audio. Disattivato per chi ha impostato la riduzione delle animazioni."
+    },
+    {
+      "type": "header",
+      "content": "Navigazione"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_arrows_mobile",
+      "label": "Frecce anche su mobile",
+      "default": false
+    },
+    {
+      "type": "checkbox",
+      "id": "show_dots",
+      "label": "Mostra i puntini",
+      "default": true
+    },
+    {
+      "type": "header",
+      "content": "Sfumatura"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_gradient",
+      "label": "Sfumatura scura in basso",
+      "default": true
+    },
+    {
+      "type": "range",
+      "id": "gradient_opacity",
+      "label": "Intensità sfumatura",
+      "min": 0,
+      "max": 1,
+      "step": 0.1,
+      "default": 0.6
+    },
+    {
+      "type": "header",
+      "content": "Colori"
+    },
+    {
+      "type": "color",
+      "id": "text_color",
+      "label": "Testo",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "star_color",
+      "label": "Stelle",
+      "default": "#ffd700"
+    },
+    {
+      "type": "color",
+      "id": "button_background",
+      "label": "Sfondo pulsante",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "button_text_color",
+      "label": "Testo pulsante",
+      "default": "#000000"
+    },
+    {
+      "type": "color",
+      "id": "arrow_background",
+      "label": "Sfondo frecce",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "arrow_color",
+      "label": "Frecce e puntini",
+      "default": "#000000"
+    },
+    {
+      "type": "header",
+      "content": "Video 1"
+    },
+    {
+      "type": "video",
+      "id": "video_1",
+      "label": "Video"
+    },
+    {
+      "type": "image_picker",
+      "id": "poster_1",
+      "label": "Immagine di copertina",
+      "info": "Se vuota viene usata l'anteprima del video."
+    },
+    {
+      "type": "text",
+      "id": "title_1",
+      "label": "Titolo"
+    },
+    {
+      "type": "textarea",
+      "id": "description_1",
+      "label": "Descrizione"
+    },
+    {
+      "type": "range",
+      "id": "rating_1",
+      "label": "Valutazione",
+      "min": 0,
+      "max": 5,
+      "step": 0.5,
+      "default": 0
+    },
+    {
+      "type": "url",
+      "id": "cta_link_1",
+      "label": "Link del pulsante"
+    },
+    {
+      "type": "text",
+      "id": "cta_text_1",
+      "label": "Testo del pulsante"
+    },
+    {
+      "type": "header",
+      "content": "Video 2"
+    },
+    {
+      "type": "video",
+      "id": "video_2",
+      "label": "Video"
+    },
+    {
+      "type": "image_picker",
+      "id": "poster_2",
+      "label": "Immagine di copertina",
+      "info": "Se vuota viene usata l'anteprima del video."
+    },
+    {
+      "type": "text",
+      "id": "title_2",
+      "label": "Titolo"
+    },
+    {
+      "type": "textarea",
+      "id": "description_2",
+      "label": "Descrizione"
+    },
+    {
+      "type": "range",
+      "id": "rating_2",
+      "label": "Valutazione",
+      "min": 0,
+      "max": 5,
+      "step": 0.5,
+      "default": 0
+    },
+    {
+      "type": "url",
+      "id": "cta_link_2",
+      "label": "Link del pulsante"
+    },
+    {
+      "type": "text",
+      "id": "cta_text_2",
+      "label": "Testo del pulsante"
+    },
+    {
+      "type": "header",
+      "content": "Video 3"
+    },
+    {
+      "type": "video",
+      "id": "video_3",
+      "label": "Video"
+    },
+    {
+      "type": "image_picker",
+      "id": "poster_3",
+      "label": "Immagine di copertina",
+      "info": "Se vuota viene usata l'anteprima del video."
+    },
+    {
+      "type": "text",
+      "id": "title_3",
+      "label": "Titolo"
+    },
+    {
+      "type": "textarea",
+      "id": "description_3",
+      "label": "Descrizione"
+    },
+    {
+      "type": "range",
+      "id": "rating_3",
+      "label": "Valutazione",
+      "min": 0,
+      "max": 5,
+      "step": 0.5,
+      "default": 0
+    },
+    {
+      "type": "url",
+      "id": "cta_link_3",
+      "label": "Link del pulsante"
+    },
+    {
+      "type": "text",
+      "id": "cta_text_3",
+      "label": "Testo del pulsante"
+    },
+    {
+      "type": "header",
+      "content": "Video 4"
+    },
+    {
+      "type": "video",
+      "id": "video_4",
+      "label": "Video"
+    },
+    {
+      "type": "image_picker",
+      "id": "poster_4",
+      "label": "Immagine di copertina",
+      "info": "Se vuota viene usata l'anteprima del video."
+    },
+    {
+      "type": "text",
+      "id": "title_4",
+      "label": "Titolo"
+    },
+    {
+      "type": "textarea",
+      "id": "description_4",
+      "label": "Descrizione"
+    },
+    {
+      "type": "range",
+      "id": "rating_4",
+      "label": "Valutazione",
+      "min": 0,
+      "max": 5,
+      "step": 0.5,
+      "default": 0
+    },
+    {
+      "type": "url",
+      "id": "cta_link_4",
+      "label": "Link del pulsante"
+    },
+    {
+      "type": "text",
+      "id": "cta_text_4",
+      "label": "Testo del pulsante"
+    },
+    {
+      "type": "header",
+      "content": "Video 5"
+    },
+    {
+      "type": "video",
+      "id": "video_5",
+      "label": "Video"
+    },
+    {
+      "type": "image_picker",
+      "id": "poster_5",
+      "label": "Immagine di copertina",
+      "info": "Se vuota viene usata l'anteprima del video."
+    },
+    {
+      "type": "text",
+      "id": "title_5",
+      "label": "Titolo"
+    },
+    {
+      "type": "textarea",
+      "id": "description_5",
+      "label": "Descrizione"
+    },
+    {
+      "type": "range",
+      "id": "rating_5",
+      "label": "Valutazione",
+      "min": 0,
+      "max": 5,
+      "step": 0.5,
+      "default": 0
+    },
+    {
+      "type": "url",
+      "id": "cta_link_5",
+      "label": "Link del pulsante"
+    },
+    {
+      "type": "text",
+      "id": "cta_text_5",
+      "label": "Testo del pulsante"
+    },
+    {
+      "type": "header",
+      "content": "Video 6"
+    },
+    {
+      "type": "video",
+      "id": "video_6",
+      "label": "Video"
+    },
+    {
+      "type": "image_picker",
+      "id": "poster_6",
+      "label": "Immagine di copertina",
+      "info": "Se vuota viene usata l'anteprima del video."
+    },
+    {
+      "type": "text",
+      "id": "title_6",
+      "label": "Titolo"
+    },
+    {
+      "type": "textarea",
+      "id": "description_6",
+      "label": "Descrizione"
+    },
+    {
+      "type": "range",
+      "id": "rating_6",
+      "label": "Valutazione",
+      "min": 0,
+      "max": 5,
+      "step": 0.5,
+      "default": 0
+    },
+    {
+      "type": "url",
+      "id": "cta_link_6",
+      "label": "Link del pulsante"
+    },
+    {
+      "type": "text",
+      "id": "cta_text_6",
+      "label": "Testo del pulsante"
+    },
+    {
+      "type": "header",
+      "content": "Video 7"
+    },
+    {
+      "type": "video",
+      "id": "video_7",
+      "label": "Video"
+    },
+    {
+      "type": "image_picker",
+      "id": "poster_7",
+      "label": "Immagine di copertina",
+      "info": "Se vuota viene usata l'anteprima del video."
+    },
+    {
+      "type": "text",
+      "id": "title_7",
+      "label": "Titolo"
+    },
+    {
+      "type": "textarea",
+      "id": "description_7",
+      "label": "Descrizione"
+    },
+    {
+      "type": "range",
+      "id": "rating_7",
+      "label": "Valutazione",
+      "min": 0,
+      "max": 5,
+      "step": 0.5,
+      "default": 0
+    },
+    {
+      "type": "url",
+      "id": "cta_link_7",
+      "label": "Link del pulsante"
+    },
+    {
+      "type": "text",
+      "id": "cta_text_7",
+      "label": "Testo del pulsante"
+    },
+    {
+      "type": "header",
+      "content": "Video 8"
+    },
+    {
+      "type": "video",
+      "id": "video_8",
+      "label": "Video"
+    },
+    {
+      "type": "image_picker",
+      "id": "poster_8",
+      "label": "Immagine di copertina",
+      "info": "Se vuota viene usata l'anteprima del video."
+    },
+    {
+      "type": "text",
+      "id": "title_8",
+      "label": "Titolo"
+    },
+    {
+      "type": "textarea",
+      "id": "description_8",
+      "label": "Descrizione"
+    },
+    {
+      "type": "range",
+      "id": "rating_8",
+      "label": "Valutazione",
+      "min": 0,
+      "max": 5,
+      "step": 0.5,
+      "default": 0
+    },
+    {
+      "type": "url",
+      "id": "cta_link_8",
+      "label": "Link del pulsante"
+    },
+    {
+      "type": "text",
+      "id": "cta_text_8",
+      "label": "Testo del pulsante"
+    },
+    {
+      "type": "header",
+      "content": "Video 9"
+    },
+    {
+      "type": "video",
+      "id": "video_9",
+      "label": "Video"
+    },
+    {
+      "type": "image_picker",
+      "id": "poster_9",
+      "label": "Immagine di copertina",
+      "info": "Se vuota viene usata l'anteprima del video."
+    },
+    {
+      "type": "text",
+      "id": "title_9",
+      "label": "Titolo"
+    },
+    {
+      "type": "textarea",
+      "id": "description_9",
+      "label": "Descrizione"
+    },
+    {
+      "type": "range",
+      "id": "rating_9",
+      "label": "Valutazione",
+      "min": 0,
+      "max": 5,
+      "step": 0.5,
+      "default": 0
+    },
+    {
+      "type": "url",
+      "id": "cta_link_9",
+      "label": "Link del pulsante"
+    },
+    {
+      "type": "text",
+      "id": "cta_text_9",
+      "label": "Testo del pulsante"
+    },
+    {
+      "type": "header",
+      "content": "Video 10"
+    },
+    {
+      "type": "video",
+      "id": "video_10",
+      "label": "Video"
+    },
+    {
+      "type": "image_picker",
+      "id": "poster_10",
+      "label": "Immagine di copertina",
+      "info": "Se vuota viene usata l'anteprima del video."
+    },
+    {
+      "type": "text",
+      "id": "title_10",
+      "label": "Titolo"
+    },
+    {
+      "type": "textarea",
+      "id": "description_10",
+      "label": "Descrizione"
+    },
+    {
+      "type": "range",
+      "id": "rating_10",
+      "label": "Valutazione",
+      "min": 0,
+      "max": 5,
+      "step": 0.5,
+      "default": 0
+    },
+    {
+      "type": "url",
+      "id": "cta_link_10",
+      "label": "Link del pulsante"
+    },
+    {
+      "type": "text",
+      "id": "cta_text_10",
+      "label": "Testo del pulsante"
+    }
+  ],
+  "presets": [
+    {
+      "name": "Video carousel"
+    }
+  ]
+}
+{% endschema %}
