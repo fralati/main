@@ -3,13 +3,13 @@
 Ricostruzione della sezione **"Carrousel vidéo"** del vecchio tema *Hyperflow v1.16*,
 riscritta per funzionare su qualsiasi tema Online Store 2.0 (Dawn e derivati inclusi).
 
-File: [`sections/video-carousel-reels.liquid`](sections/video-carousel-reels.liquid)
+File: [`sections/custom-video-carousel-reels.liquid`](sections/custom-video-carousel-reels.liquid)
 
 ## Installazione
 
 1. Shopify admin → **Negozio online → Temi → ⋯ → Modifica codice**
-2. Nella cartella `sections` → **Aggiungi una nuova sezione** → nome `video-carousel-reels`
-3. Incolla il contenuto di `sections/video-carousel-reels.liquid` (sostituendo tutto) e salva
+2. Nella cartella `sections` → **Aggiungi una nuova sezione** → nome `custom-video-carousel-reels`
+3. Incolla il contenuto di `sections/custom-video-carousel-reels.liquid` (sostituendo tutto) e salva
 4. Nel personalizzatore → **Aggiungi sezione → Carosello video verticale**
 
 Nessun file aggiuntivo, nessuna app, nessuna libreria da caricare.
@@ -49,3 +49,61 @@ Nessun file aggiuntivo, nessuna app, nessuna libreria da caricare.
   se possibile carica il file direttamente su Shopify.
 - L'autoplay viene disattivato per chi ha impostato *riduci animazioni* nel sistema
   operativo: resta la copertina con il pulsante play.
+
+## Sopravvivere agli aggiornamenti del tema
+
+Su Shopify un aggiornamento di tema **installa un tema nuovo**: i file aggiunti a
+mano non vengono copiati. Non esiste un modo, dentro Shopify, per rendere una
+sezione personalizzata immune agli aggiornamenti. Quello che si può fare:
+
+- **La sorgente sta qui, non nel tema.** Questo repo è la copia di riferimento;
+  il file nel tema è solo una installazione.
+- **Prefisso `custom-`.** Nessun file di Horizon si chiamerà mai così, quindi un
+  aggiornamento non può sovrascriverlo per collisione di nome.
+- **Intestazione nel file.** Chi apre il codice del tema vede da dove viene e che
+  va reinstallato.
+- **Reinstallazione.** Dopo ogni aggiornamento, ricopiare il file dal repo nel
+  tema nuovo (2 minuti a mano, oppure via Admin API come sotto).
+
+### Reinstallazione via Admin API
+
+Funziona solo su temi **non pubblicati** (Shopify blocca le scritture sul tema
+live: pubblicare il tema dopo l'installazione).
+
+```graphql
+mutation Reinstall($themeId: ID!, $files: [OnlineStoreThemeFilesUpsertFileInput!]!) {
+  themeFilesUpsert(themeId: $themeId, files: $files) {
+    upsertedThemeFiles { filename }
+    userErrors { filename code message }
+  }
+}
+```
+
+```json
+{
+  "themeId": "gid://shopify/OnlineStoreTheme/<ID-DEL-TEMA-NUOVO>",
+  "files": [{
+    "filename": "sections/custom-video-carousel-reels.liquid",
+    "body": {
+      "type": "URL",
+      "value": "https://raw.githubusercontent.com/fralati/main/claude/shopify-portrait-video-carousel-fi7fdb/shopify/sections/custom-video-carousel-reels.liquid"
+    }
+  }]
+}
+```
+
+### La soluzione definitiva
+
+Collegare il tema a un repo GitHub (Shopify admin -> Temi -> Aggiungi tema ->
+Connetti da GitHub). Il tema diventa versionato e i file personalizzati vivono
+nel repo in modo permanente: gli aggiornamenti si gestiscono con git e non si
+perde più nulla. Cambia però il modo di lavorare sul tema.
+
+## Note su Horizon
+
+Il tema attivo è Horizon, non più Hyperflow. La sezione è stata adattata alle sue
+convenzioni: nessun `tag`/`class` nello schema (Horizon applica da solo la classe
+`.section` con la propria larghezza e spaziatura, che si sarebbe sommata alla
+nostra), CSS in `{% stylesheet %}` così viene emesso una volta sola per tutto il
+tema invece che a ogni istanza, e dimensione del titolo in px perché le classi
+`.h1`/`.h2`/`.h3` esistono in Dawn ma non in Horizon.

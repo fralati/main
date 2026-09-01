@@ -1,6 +1,16 @@
 {%- comment -%}
   ============================================================================
-  Carosello video verticale (stile Reels / TikTok)
+  Carosello video verticale (stile Reels / TikTok)          -  versione 1.0.0
+  ----------------------------------------------------------------------------
+  FILE PERSONALIZZATO - non fa parte del tema Horizon.
+
+  Sorgente (unica copia di riferimento):
+  github.com/fralati/main -> shopify/sections/custom-video-carousel-reels.liquid
+
+  ATTENZIONE: un aggiornamento del tema installa un tema nuovo e questo file
+  NON viene copiato. Dopo ogni aggiornamento va reinstallato dalla sorgente
+  qui sopra. Il prefisso "custom-" garantisce che nessun file di Horizon possa
+  sovrascriverlo.
   ----------------------------------------------------------------------------
   Ricostruzione moderna del blocco "Carrousel vidéo" del tema Hyperflow.
   Differenze principali rispetto all'originale:
@@ -23,7 +33,7 @@
   assign per_view_mobile = section.settings.per_view_mobile
 -%}
 
-{% style %}
+{% stylesheet %}
   .vcr {
     background-color: var(--vcr-bg);
     padding-top: var(--vcr-pt-m);
@@ -49,6 +59,7 @@
   .vcr__heading {
     margin: 0;
     color: inherit;
+    font-size: var(--vcr-heading-size-m);
   }
 
   .vcr__subheading {
@@ -381,6 +392,7 @@
       width: var(--vcr-slide-w-t);
     }
 
+    .vcr__heading { font-size: var(--vcr-heading-size); }
     .vcr__title { font-size: var(--vcr-title-size); }
     .vcr__text { font-size: var(--vcr-text-size); }
 
@@ -405,7 +417,7 @@
     .vcr__track { scroll-behavior: auto; }
     .vcr__card { transition: none; }
   }
-{% endstyle %}
+{% endstylesheet %}
 
 <video-carousel
   class="vcr{% if section.settings.center_mode %} vcr--center{% endif %}{% if section.settings.show_arrows %} vcr--arrows-desktop{% endif %}{% if section.settings.show_arrows_mobile %} vcr--arrows-mobile{% endif %}"
@@ -434,6 +446,8 @@
     --vcr-snap: {% if section.settings.center_mode %}center{% else %}start{% endif %};
     --vcr-idle-scale: {% if section.settings.center_mode %}{{ section.settings.idle_scale | divided_by: 100.0 }}{% else %}1{% endif %};
     --vcr-heading-color: {{ section.settings.heading_color }};
+    --vcr-heading-size: {{ section.settings.heading_size }}px;
+    --vcr-heading-size-m: {{ section.settings.heading_size_mobile }}px;
     --vcr-subheading-color: {{ section.settings.heading_color | color_modify: 'alpha', 0.75 }};
     --vcr-header-align: {{ section.settings.heading_alignment }};
     --vcr-content-align: {% if section.settings.content_alignment == 'center' %}center{% elsif section.settings.content_alignment == 'right' %}flex-end{% else %}flex-start{% endif %};
@@ -462,7 +476,7 @@
     {%- if section.settings.heading != blank or section.settings.subheading != blank -%}
       <div class="vcr__header">
         {%- if section.settings.heading != blank -%}
-          <h2 class="vcr__heading {{ section.settings.heading_size }}">{{ section.settings.heading | escape }}</h2>
+          <h2 class="vcr__heading">{{ section.settings.heading | escape }}</h2>
         {%- endif -%}
         {%- if section.settings.subheading != blank -%}
           <div class="vcr__subheading rte">{{ section.settings.subheading }}</div>
@@ -1029,8 +1043,6 @@
 {% schema %}
 {
   "name": "Carosello video verticale",
-  "tag": "section",
-  "class": "section",
   "disabled_on": {
     "groups": ["header", "footer"]
   },
@@ -1042,15 +1054,24 @@
       "default": "Dicono di noi"
     },
     {
-      "type": "select",
+      "type": "range",
       "id": "heading_size",
-      "label": "Dimensione titolo",
-      "options": [
-        { "value": "h3", "label": "Piccolo" },
-        { "value": "h2", "label": "Medio" },
-        { "value": "h1", "label": "Grande" }
-      ],
-      "default": "h2"
+      "min": 16,
+      "max": 64,
+      "step": 1,
+      "unit": "px",
+      "label": "Dimensione titolo (desktop)",
+      "default": 32
+    },
+    {
+      "type": "range",
+      "id": "heading_size_mobile",
+      "min": 14,
+      "max": 48,
+      "step": 1,
+      "unit": "px",
+      "label": "Dimensione titolo (mobile)",
+      "default": 24
     },
     {
       "type": "richtext",
@@ -1135,7 +1156,8 @@
       "step": 1,
       "unit": "%",
       "label": "Scala delle card non attive",
-      "default": 90
+      "default": 90,
+      "visible_if": "{{ section.settings.center_mode }}"
     },
     {
       "type": "checkbox",
@@ -1519,6 +1541,7 @@
   "presets": [
     {
       "name": "Carosello video verticale",
+      "category": "Video",
       "blocks": [
         { "type": "slide" },
         { "type": "slide" },
