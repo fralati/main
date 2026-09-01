@@ -72,50 +72,43 @@ Copertura minima obbligatoria per tipo:
 Questo è ciò che alimenta i **filtri nativi** del tema: senza copertura piena i filtri mentono
 (un prodotto senza facet sparisce dai risultati filtrati).
 
-## 4. Tag — vocabolario controllato
+## 4. Tag — INVARIATI (vincolo di progetto)
 
-Da 97 tag non governati a un dizionario chiuso su tre famiglie. Tutto il resto si elimina.
+I tag non si toccano: nessuna aggiunta, rimozione o rinomina. Il vocabolario attuale (97 valori)
+resta esattamente com'è.
 
-**a) Linea commerciale** (una per prodotto, valore libero ma dal dizionario):
-Fairy Silk · K-Perfection · Grace · Age Restore · Frozen Blonde · Healthy Scalp · Styling Secret ·
-Riviera Breeze · Blondeness · Vibrant · Gems · Pure Pigments · Pure Verve · INEJ · No Glow Yellow ·
-Code Style · Liss Komplex · Curly Up · Reconstructive · Regeneration · Perm Up · Nanoplastia ·
-Cuticle · Volume Up · Xflex
+Conseguenze operative accettate:
 
-**b) Bisogno** `need-*` (una o più): frizz · curl · smooth · volume · repair · hydration · color-protect ·
-blonde · grey · anti-age · scalp · dandruff · oily · sensitive · hair-loss · split-ends · shine · detox
+- Le collezioni si costruiscono con i tag **già esistenti**, combinati con `VENDOR`, `TYPE` e
+  le regole su metafield (`PRODUCT_METAFIELD_DEFINITION`), non con tag nuovi.
+- Dove un bisogno non ha un tag proprio, la regola passa per il **product type** (§1) o per un
+  **facet** (§3): sono i due assi su cui possiamo lavorare.
+- Le sovrapposizioni semantiche fra tag (`Reconstruction`/`Reconstructive`/`Repair`) restano nei dati:
+  si risolvono **a valle**, nella regola della collezione, con un OR fra i tag sinonimi.
+  Esempio: `repair` = TAG Reconstruction OR TAG Reconstructive OR TAG Repair.
+- Le due regole che puntano a tag inesistenti (`Paste`, `Pomade` in `hair-wax`) e quella su `BFCM`
+  si correggono **cambiando la regola**, non creando i tag.
+- Il tag resta la chiave primaria delle smart collection: ogni modifica di regola va verificata
+  sul conteggio prodotti prima e dopo, perché non abbiamo la leva di ritaggare i prodotti fuori posto.
 
-**c) Stato commerciale** `state-*`: new · trending · promo · outlet · final · coming-soon · pro-only
-
-**Da eliminare**: `Hair` (universale), i brand duplicati del vendor (`Nika`, `Edelstein`, `Code Zero`,
-`cliCHair`), i tag di forma già coperti dal product type (`Shampoo`, `Mask`, `Gel`, `Wax`, `Mousse`,
-`Spray`, `Serum`, `Lotion`, `Conditioner`, `Fluid`, `Hairspray`, `Tools`, `Clothing`, `Kit`),
-i tag di ingrediente già nei facet (`Keratin`, `Argan`, `Aloe Vera`, `Organic`),
-e il rumore (`Memo`, `Trend Up`, `Beauty`, `Native`, `Finish`, `Body`, `Face`, `Pro`, `Essential`,
-`Merchandising`, `Sample`, `Chart`, `Shape`, `Color`).
-
-Consolidamenti obbligati:
-`Reconstruction` + `Reconstructive` + `Repair` → `need-repair` ·
-`Smooth` + `Frizz Free` → `need-smooth` + `need-frizz` ·
-`Volume Up` + `Volumizing` → `need-volume` ·
-`Color` + `Coloured` → `need-color-protect` ·
-`Final` + `Promo` + `Outlet` → `state-*` distinti e mutuamente esclusivi.
-
-Le regole delle smart collection vanno riscritte di conseguenza (oggi due regole puntano ai tag
-inesistenti `Paste` e `Pomade`, una a `BFCM`).
+**Limite tecnico da tenere presente**: una smart collection Shopify applica un solo operatore a tutte
+le sue regole (`appliedDisjunctively` è o AND o OR, non entrambi). Quindi *«vendor NIKA E (tag A o tag B)»*
+non è esprimibile in una regola sola. Dove serve quella logica le opzioni sono due: sfruttare il nuovo
+`productType` (che possiamo assegnare noi, ed è l'asse più pulito) oppure tenere la collezione manuale.
+Questo è il motivo per cui, con i tag congelati, **il product type diventa la leva principale**.
 
 ## 5. Collezioni — da 99 piatte a ~55 su tre livelli
 
 ### Livello 1 — Brand (4 pagine)
 `nika` · `code-zero` · `edelstein` · `clichair` *(nuova: oggi il marchio proprio non ha casa)*
-Regola: `VENDOR EQUALS <brand>` (non più `TAG`).
+Regola: `VENDOR EQUALS <brand>`, con i tag brand esistenti come fallback dove il vendor non coincide (es. Xflex è vendor EDELSTEIN + tag Xflex).
 
 ### Livello 2 — Linea (una per linea reale, ~24 pagine)
 Regola: `VENDOR = brand` AND `TAG = <linea>`. Sono le pagine che convertono: hanno un racconto,
 un protocollo e un set di prodotti coerente.
 
 ### Livello 3 — Bisogno e categoria trasversale (~27 pagine)
-Sono le pagine che intercettano la domanda di ricerca. Regola su `need-*` o su `productType`.
+Sono le pagine che intercettano la domanda di ricerca. Regola su OR di tag esistenti sinonimi, oppure su `productType` (nuovo, §1), oppure su facet.
 
 Colore: `colouring` · `ammonia-free-colors` · `low-ammonia-colors` · `semi-permanent` · `bleaching` ·
 `developers` · `pigments` · `color-care`
@@ -187,7 +180,7 @@ applicabile in blocco a tutte e 237.
 |---|---|---|---|
 | 1 | Pulizia: 29 duplicati DRAFT, link a prodotti archiviati, regole di collezione morte | basso | sì |
 | 2 | Product type + category standard su 491 prodotti | basso | sì |
-| 3 | Tag: nuovo vocabolario, riscrittura regole smart collection | medio | sì |
+| 3 | ~~Tag~~ — fuori perimetro per scelta: i tag restano invariati | — | — |
 | 4 | Collezioni: merge, gerarchia, redirect 301 | **alto (SEO)** | parziale |
 | 5 | Facet `shopify.*`: completamento copertura per tipo | basso | sì |
 | 6 | Related + complementary: 237 shade con regola tonale, poi 226 prodotti per famiglia | basso | sì |
