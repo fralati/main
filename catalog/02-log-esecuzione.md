@@ -69,3 +69,70 @@ Fase B: correlati e complementari dei 226 prodotti attivi non colore, per famigl
 Regola: *related* = alternative allo stesso bisogno, *complementary* = si usano insieme.
 Da correggere in particolare i casi con la semantica invertita (Byebact, Chimono, Flexion)
 e i rimandi a prodotti archiviati (Defrizzit).
+
+## Fase B — Correlati e complementari dei prodotti non colore (COMPLETATA, 1 settembre 2026)
+
+**Perimetro**: entrambi i metafield di raccomandazione su tutti i 226 prodotti attivi non colore.
+450 metafield scritti in 18 batch, **zero errori**. Esclusa la gift card, che non ha alternative.
+Nessun tag, collezione, URL o product type modificato.
+
+### Stato precedente
+
+- 22 riferimenti verso 6 prodotti **non acquistabili**: Ionic Curve Styler, Defrizzit Shine Serum,
+  Perm Up Kit Duo, Bleaching Compact, Nika Fairy Silk Pro Kit (archiviati) e Nika Hair Tools Kit (draft),
+  citati da 21 prodotti attivi
+- semantica invertita: l'igienizzante Byebact aveva come *alternative* ciotole e mantelline,
+  la mantellina Chimono aveva come alternative gli strumenti colore, la spazzola Flexion aveva
+  un solo correlato
+- un auto-riferimento: Xflex After Shave 45 citava se stesso fra i propri correlati
+- liste vuote o assenti su Beauty Box, Nika Kimono, i display, i campioni e diversi strumenti
+
+### Regola applicata
+
+Ogni prodotto è stato classificato per **ruolo** (shampoo, balsamo, maschera, leave-in, trattamento,
+styling, kit, strumento, abbigliamento, dopobarba, barba, rasatura, decolorante, sviluppatore,
+igiene, materiale marketing), **linea** e **bisogno**, leggendo tipo e tag esistenti.
+
+**Correlati** — alternative, in quest'ordine: altri formati dello stesso prodotto, stesso bisogno
+in altre linee, resto della linea, stesso brand. Per lo styling l'ordine parte dal tipo di prodotto
+(gel con gel, cera con cera, spray con spray), e un termoprotettore o un fluido leave-in è
+considerato una vera alternativa a una crema da brushing.
+
+**Complementari** — si usano insieme: gli step successivi del protocollo della stessa linea in
+ordine (lavaggio, balsamo o maschera, trattamento, finish), più lo strumento o il mantenimento
+pertinente. Un solo formato per prodotto, per non ripetere lo stesso articolo in due misure.
+
+Regole dedicate: strumenti colore verso sviluppatori e decoloranti; spazzole verso i leave-in;
+spazzola massaggiante verso i trattamenti per la cute; mantelle e camici verso gli strumenti colore;
+dopobarba verso creme e gel da rasatura; sviluppatori verso le shade naturali della propria linea;
+campioni verso il prodotto in formato pieno. Le sotto-linee INEJ (Color Protect, Anti-Age, Dry,
+Smooth, Loss, Dandruff, Oily) e Healthy Scalp (Gentle Relief, New Density, Total Balance) sono
+trattate come protocolli distinti, così ogni shampoo richiama il proprio trattamento e non quello
+di un'altra sotto-linea.
+
+### Risultato
+
+- 226 prodotti, 1215 correlati e 678 complementari
+- zero riferimenti a prodotti non attivi, zero auto-riferimenti
+- nessun materiale marketing fra i consigli di un prodotto vendibile
+- copertura completa: nessun prodotto senza consigli
+
+Verifica sul negozio dopo la scrittura, sui 21 prodotti che prima citavano merce non acquistabile:
+tutti i riferimenti risultano attivi. Esempi:
+
+| Prodotto | Prima | Ora |
+|---|---|---|
+| Byebact Hand Gel | correlati: ciotola, pennello, mantelline | correlati: Remov Up, Stain Remover · complementari: mantellina monouso, coprispalle, chimono |
+| Flexion anti-nodo | 1 correlato, complementari con Defrizzit archiviato | correlati: altri strumenti · complementari: Argan Native Fluid, Extender, Shimmer, Clear Tonic |
+| Xflex Spider Hair Wax | cere miste a prodotti di altre categorie | correlati: sei cere e paste Xflex · complementari: Power Spray, All Brushing Fast, Shampoo Ghiaccio |
+| Liss Komplex Treatment | kit e trattamenti di altre linee | correlati: trattamenti lisciante di altre linee · complementari: i quattro step Liss Komplex |
+| Curly Up Shampoo 300 | kit e prodotti scollegati | correlati: formato 1000 e altri shampoo dello stesso bisogno · complementari: maschera e fluido Curly Up |
+
+### Rollback
+
+`data/nc-backup-before.tsv` contiene lo stato precedente di tutti i 226 prodotti.
+
+## Stato del progetto
+
+Fatto: correlati e complementari su tutto il catalogo attivo (208 shade + 226 prodotti).
+Non toccato, per scelta: tag, collezioni, product type, categoria standard, facet, URL.
