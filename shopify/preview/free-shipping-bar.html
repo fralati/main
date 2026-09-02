@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Barra spedizione gratuita — anteprima</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#ffffff; --fg:#1a1a1a; --c1:#f0efed; --c4:#f5f5f5; --c7:#333333;
+    --fg-rgb:26 26 26;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;padding:32px 20px 64px;background:var(--c4);
+       font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--fg)}
+  h1{font-size:20px;font-weight:700;text-transform:uppercase;letter-spacing:.02em;margin:0 0 4px}
+  .sub{font-size:12px;color:#6b6b6b;margin:0 0 28px}
+  h2{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;
+     color:#6b6b6b;margin:36px 0 12px}
+  .row{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start}
+
+  /* --- mock drawer --------------------------------------------------- */
+  .drawer{width:320px;background:var(--bg);border:1px solid #e4e4e4;border-radius:8px;
+          overflow:hidden;box-shadow:0 1px 3px rgb(0 0 0 / .06)}
+  .drawer__head{display:flex;justify-content:space-between;align-items:center;
+                padding:16px 18px;font-size:13px;font-weight:600;text-transform:uppercase;
+                letter-spacing:.04em}
+  .badge{background:var(--fg);color:#fff;border-radius:999px;font-size:11px;
+         min-width:18px;height:18px;display:inline-flex;align-items:center;
+         justify-content:center;padding:0 5px;font-weight:600}
+  .drawer__items{padding:0 18px 16px;display:flex;flex-direction:column;gap:12px}
+  .line{display:flex;gap:10px;align-items:center}
+  .thumb{width:44px;height:56px;border-radius:4px;background:var(--c1);flex:0 0 auto}
+  .line__t{font-size:12px;line-height:1.35}
+  .line__t span{display:block;color:#7a7a7a;font-size:11px}
+  .line__p{margin-left:auto;font-size:12px;font-weight:500}
+  .drawer__summary{border-top:1px solid #ececec;padding:16px 18px 18px;
+                   display:flex;flex-direction:column;gap:16px;background:var(--bg)}
+  .totals{display:flex;justify-content:space-between;align-items:baseline;
+          font-weight:700;font-size:12px}
+  .totals b{font-size:18px}
+  .cta{display:block;width:100%;border:0;border-radius:14px;background:var(--fg);
+       color:#fff;font:inherit;font-size:13px;font-weight:600;padding:14px;
+       text-transform:uppercase;letter-spacing:.04em;cursor:pointer}
+
+  /* --- la barra (stesso CSS dello snippet) ---------------------------- */
+  .custom-fsb{
+    --fsb-height:6px;
+    --fsb-fill:var(--fg);
+    --fsb-fill-reached:var(--fg);
+    --fsb-track:rgb(var(--fg-rgb) / .12);
+    display:flex;flex-direction:column;gap:8px;width:100%;
+  }
+  .custom-fsb__text{display:flex;align-items:center;gap:6px;margin:0;
+                    font-size:12px;line-height:1.35}
+  .custom-fsb__text strong{font-weight:600}
+  .custom-fsb__icon{display:inline-flex;flex:0 0 auto;width:14px;height:14px}
+  .custom-fsb__icon svg{display:block;width:100%;height:100%}
+  .custom-fsb__track{position:relative;height:var(--fsb-height);
+                     border-radius:calc(var(--fsb-height)/2);
+                     background:var(--fsb-track);overflow:hidden}
+  .custom-fsb__fill{display:block;height:100%;border-radius:inherit;
+                    background:var(--fsb-fill);
+                    transition:width .45s cubic-bezier(.2,.7,.3,1)}
+  .custom-fsb--reached .custom-fsb__fill{background:var(--fsb-fill-reached)}
+  .green{--fsb-fill-reached:#2e6f4e}
+
+  .caption{font-size:11px;color:#8a8a8a;margin:8px 2px 0;width:320px}
+  .note{font-size:12px;line-height:1.6;color:#4a4a4a;max-width:660px;
+        background:var(--bg);border:1px solid #e8e8e8;border-radius:8px;padding:16px 18px}
+  .note b{font-weight:600;color:var(--fg)}
+</style>
+</head>
+<body>
+
+<h1>Barra spedizione gratuita</h1>
+<p class="sub">Anteprima statica — palette e font del tema Horizon di cliCHair.ch</p>
+
+<h2>Gli stati, soglia 99 CHF</h2>
+<div class="row">
+
+  <div>
+    <div class="drawer">
+      <div class="drawer__head"><span>Carrello <span class="badge">1</span></span><span>✕</span></div>
+      <div class="drawer__items">
+        <div class="line"><div class="thumb"></div>
+          <div class="line__t">Vibrant Color<span>7.3 · 100 ml</span></div>
+          <div class="line__p">28.80 CHF</div></div>
+      </div>
+      <div class="drawer__summary">
+        <div class="custom-fsb">
+          <p class="custom-fsb__text">Ti mancano <strong>70.20 CHF</strong> alla spedizione gratuita</p>
+          <div class="custom-fsb__track"><span class="custom-fsb__fill" style="width:29.1%"></span></div>
+        </div>
+        <div class="totals"><span>TOTALE STIMATO</span><b>28.80 CHF</b></div>
+        <button class="cta">Checkout</button>
+      </div>
+    </div>
+    <p class="caption">Carrello mediano reale (51 CHF di mediana): la barra resta sotto un terzo.</p>
+  </div>
+
+  <div>
+    <div class="drawer">
+      <div class="drawer__head"><span>Carrello <span class="badge">3</span></span><span>✕</span></div>
+      <div class="drawer__items">
+        <div class="line"><div class="thumb"></div>
+          <div class="line__t">Grace Color<span>6.0 · 100 ml</span></div>
+          <div class="line__p">28.80 CHF</div></div>
+        <div class="line"><div class="thumb"></div>
+          <div class="line__t">Pure Pigment<span>Rosso · 100 ml</span></div>
+          <div class="line__p">57.60 CHF</div></div>
+      </div>
+      <div class="drawer__summary">
+        <div class="custom-fsb">
+          <p class="custom-fsb__text">Ti mancano <strong>12.60 CHF</strong> alla spedizione gratuita</p>
+          <div class="custom-fsb__track"><span class="custom-fsb__fill" style="width:87.3%"></span></div>
+        </div>
+        <div class="totals"><span>TOTALE STIMATO</span><b>86.40 CHF</b></div>
+        <button class="cta">Checkout</button>
+      </div>
+    </div>
+    <p class="caption">Qui la barra lavora: 12.60 CHF sono un prodotto d'impulso.</p>
+  </div>
+
+  <div>
+    <div class="drawer">
+      <div class="drawer__head"><span>Carrello <span class="badge">4</span></span><span>✕</span></div>
+      <div class="drawer__items">
+        <div class="line"><div class="thumb"></div>
+          <div class="line__t">Grace Color<span>6.0 · 100 ml</span></div>
+          <div class="line__p">28.80 CHF</div></div>
+        <div class="line"><div class="thumb"></div>
+          <div class="line__t">Pure Pigment<span>Rosso · 100 ml</span></div>
+          <div class="line__p">57.60 CHF</div></div>
+        <div class="line"><div class="thumb"></div>
+          <div class="line__t">Ossidante 20 vol<span>1000 ml</span></div>
+          <div class="line__p">14.40 CHF</div></div>
+      </div>
+      <div class="drawer__summary">
+        <div class="custom-fsb custom-fsb--reached">
+          <p class="custom-fsb__text">
+            <span class="custom-fsb__icon" aria-hidden="true">
+              <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.4"/>
+                <path d="M5 8.2 7 10.2l4-4.4" stroke="currentColor" stroke-width="1.4"
+                      stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+            Spedizione DHL Express gratuita sbloccata
+          </p>
+          <div class="custom-fsb__track"><span class="custom-fsb__fill" style="width:100%"></span></div>
+        </div>
+        <div class="totals"><span>TOTALE STIMATO</span><b>100.80 CHF</b></div>
+        <button class="cta">Checkout</button>
+      </div>
+    </div>
+    <p class="caption">Stato raggiunto, monocromatico (default).</p>
+  </div>
+
+</div>
+
+<h2>Stato raggiunto — variante a colori</h2>
+<div class="row">
+  <div>
+    <div class="drawer">
+      <div class="drawer__summary" style="border-top:0">
+        <div class="custom-fsb custom-fsb--reached green">
+          <p class="custom-fsb__text">
+            <span class="custom-fsb__icon" aria-hidden="true">
+              <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.4"/>
+                <path d="M5 8.2 7 10.2l4-4.4" stroke="currentColor" stroke-width="1.4"
+                      stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+            Spedizione DHL Express gratuita sbloccata
+          </p>
+          <div class="custom-fsb__track"><span class="custom-fsb__fill" style="width:100%"></span></div>
+        </div>
+        <div class="totals"><span>TOTALE STIMATO</span><b>100.80 CHF</b></div>
+        <button class="cta">Checkout</button>
+      </div>
+    </div>
+    <p class="caption">Una riga di CSS: <code>--fsb-fill-reached:#2e6f4e</code></p>
+  </div>
+</div>
+
+<h2>Soglia 99 contro soglia 79, stesso carrello da 51 CHF</h2>
+<div class="row">
+  <div>
+    <div class="drawer"><div class="drawer__summary" style="border-top:0">
+      <div class="custom-fsb">
+        <p class="custom-fsb__text">Ti mancano <strong>47.72 CHF</strong> alla spedizione gratuita</p>
+        <div class="custom-fsb__track"><span class="custom-fsb__fill" style="width:51.8%"></span></div>
+      </div>
+    </div></div>
+    <p class="caption">Soglia 99 — mancano quasi un carrello intero.</p>
+  </div>
+  <div>
+    <div class="drawer"><div class="drawer__summary" style="border-top:0">
+      <div class="custom-fsb">
+        <p class="custom-fsb__text">Ti mancano <strong>27.72 CHF</strong> alla spedizione gratuita</p>
+        <div class="custom-fsb__track"><span class="custom-fsb__fill" style="width:64.9%"></span></div>
+      </div>
+    </div></div>
+    <p class="caption">Soglia 79 — un prodotto singolo del catalogo.</p>
+  </div>
+</div>
+
+<h2>Nota</h2>
+<p class="note">
+  Anteprima statica: nel tema la larghezza della barra e il testo li calcola Liquid a
+  ogni ri-render del carrello, quindi <b>senza JavaScript</b>. I prezzi qui sono
+  d'esempio. La soglia mostrata (99 CHF) e' quella oggi attiva su
+  <b>Impostazioni &gt; Spedizioni</b> per la zona SHIP-Z0.
+</p>
+
+</body>
+</html>

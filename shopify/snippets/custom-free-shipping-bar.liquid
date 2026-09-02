@@ -1,0 +1,219 @@
+{%- doc -%}
+  Barra di avanzamento verso la soglia di spedizione gratuita.
+
+  Nessun JavaScript, nessuna app, nessuna libreria. Horizon ri-renderizza il
+  carrello (drawer e pagina) tramite la Section Rendering API a ogni modifica:
+  questo snippet viene rivalutato insieme al riepilogo, quindi la barra e'
+  sempre allineata al totale reale, codici sconto inclusi.
+
+  Sorgente di riferimento: https://github.com/fralati/main
+  File: shopify/snippets/custom-free-shipping-bar.liquid
+  Va reinstallato dopo ogni aggiornamento del tema (vedi FREE-SHIPPING-BAR.md).
+
+  @param {string} [context] - etichetta del punto di innesto (es. 'summary',
+    'drawer'). Aggiunge solo una classe CSS, non cambia il comportamento.
+{%- enddoc -%}
+
+{%- liquid
+  # ==================================================================
+  # CONFIGURAZIONE
+  # ==================================================================
+  # Soglie per valuta, in centesimi (99.00 CHF -> 9900).
+  # Devono corrispondere a Impostazioni > Spedizioni e consegne.
+  # Una valuta senza soglia = barra nascosta in quel mercato.
+  #
+  # Per cambiare la soglia senza toccare il codice (e senza perderla agli
+  # aggiornamenti del tema) crea il metafield shop custom.free_shipping_thresholds
+  # di tipo JSON con dentro, ad esempio: {"CHF": 9900}
+  # Il metafield, se presente, vince sui valori qui sotto.
+
+  assign currency_code = cart.currency.iso_code
+  assign threshold = 0
+
+  assign thresholds_metafield = shop.metafields.custom.free_shipping_thresholds.value
+  if thresholds_metafield != blank
+    assign threshold = thresholds_metafield[currency_code] | plus: 0
+  endif
+
+  if threshold == 0
+    case currency_code
+      when 'CHF'
+        assign threshold = 9900
+    endcase
+  endif
+
+  # ==================================================================
+  # STATO DEL CARRELLO
+  # ==================================================================
+  # Il carrello contiene almeno un articolo che va spedito? Un carrello di
+  # sole gift card non ha spedizione: promettere la spedizione gratuita
+  # sarebbe una promessa senza oggetto.
+  assign needs_shipping = false
+  for line_item in cart.items
+    if line_item.requires_shipping
+      assign needs_shipping = true
+      break
+    endif
+  endfor
+
+  # Spedizione gia' gratuita per un codice sconto applicato al carrello.
+  assign shipping_discounted = false
+  for discount_application in cart.cart_level_discount_applications
+    if discount_application.target_type == 'shipping_line'
+      assign shipping_discounted = true
+    endif
+  endfor
+
+  assign show_bar = true
+  if threshold <= 0 or needs_shipping == false or cart.item_count == 0
+    assign show_bar = false
+  endif
+
+  # cart.total_price e' il totale dopo gli sconti di riga e di carrello, senza
+  # spedizione: la stessa base che Shopify usa per la condizione di prezzo
+  # della tariffa di spedizione. Usare items_subtotal_price qui sarebbe un bug:
+  # con un codice sconto attivo la barra prometterebbe una spedizione gratuita
+  # che il checkout poi non applica.
+  assign cart_total = cart.total_price
+
+  assign remaining = threshold | minus: cart_total
+  if remaining < 0
+    assign remaining = 0
+  endif
+
+  assign reached = false
+  if remaining == 0 or shipping_discounted
+    assign reached = true
+  endif
+
+  assign percent = 0
+  if threshold > 0
+    assign percent = cart_total | times: 100.00 | divided_by: threshold
+  endif
+  if reached
+    assign percent = 100
+  endif
+  assign percent = percent | at_most: 100 | at_least: 0 | round: 1
+
+  # ==================================================================
+  # TESTI
+  # ==================================================================
+  assign locale_code = request.locale.iso_code | slice: 0, 2 | downcase
+  assign remaining_formatted = remaining | money
+
+  case locale_code
+    when 'it'
+      assign text_before = 'Ti mancano '
+      assign text_after = ' alla spedizione gratuita'
+      assign text_reached = 'Spedizione DHL Express gratuita sbloccata'
+    when 'de'
+      assign text_before = 'Nur noch '
+      assign text_after = ' bis zum Gratisversand'
+      assign text_reached = 'Gratis DHL Express Versand freigeschaltet'
+    when 'fr'
+      assign text_before = 'Plus que '
+      assign text_after = ' pour la livraison offerte'
+      assign text_reached = 'Livraison DHL Express offerte d&eacute;bloqu&eacute;e'
+    else
+      assign text_before = 'You are '
+      assign text_after = ' away from free shipping'
+      assign text_reached = 'Free DHL Express shipping unlocked'
+  endcase
+-%}
+
+{%- if show_bar -%}
+  <div
+    class="custom-fsb{% if reached %} custom-fsb--reached{% endif %}{% if context != blank %} custom-fsb--{{ context }}{% endif %}"
+    data-custom-fsb
+  >
+    <p class="custom-fsb__text" aria-live="polite">
+      {%- if reached -%}
+        <span class="custom-fsb__icon" aria-hidden="true">
+          <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.4"/>
+            <path d="M5 8.2 7 10.2l4-4.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </span>
+        {{ text_reached }}
+      {%- else -%}
+        {{ text_before }}<strong>{{ remaining_formatted }}</strong>{{ text_after }}
+      {%- endif -%}
+    </p>
+
+    <div class="custom-fsb__track" aria-hidden="true">
+      <span class="custom-fsb__fill" style="width: {{ percent }}%;"></span>
+    </div>
+  </div>
+
+  {%- comment -%}
+    Lo stile e' inline perche' il tag stylesheet e' ammesso solo in sezioni e
+    blocchi, non negli snippet. Il carrello ne renderizza comunque una sola
+    copia per pagina: il drawer non esiste sul template cart e viceversa.
+  {%- endcomment -%}
+  <style>
+    .custom-fsb {
+      /* Cambia questi tre valori per ricolorare tutta la barra. */
+      --fsb-height: 6px;
+      --fsb-fill: var(--color-foreground, #1a1a1a);
+      --fsb-fill-reached: var(--color-foreground, #1a1a1a);
+      --fsb-track: rgb(var(--color-foreground-rgb, 26 26 26) / 0.12);
+
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      width: 100%;
+    }
+
+    .custom-fsb__text {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin: 0;
+      font-size: var(--font-size--2xs, 12px);
+      line-height: 1.35;
+    }
+
+    .custom-fsb__text strong {
+      font-weight: 600;
+    }
+
+    .custom-fsb__icon {
+      display: inline-flex;
+      flex: 0 0 auto;
+      width: 14px;
+      height: 14px;
+    }
+
+    .custom-fsb__icon svg {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .custom-fsb__track {
+      position: relative;
+      height: var(--fsb-height);
+      border-radius: calc(var(--fsb-height) / 2);
+      background: var(--fsb-track);
+      overflow: hidden;
+    }
+
+    .custom-fsb__fill {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: var(--fsb-fill);
+      transition: width 0.45s cubic-bezier(0.2, 0.7, 0.3, 1);
+    }
+
+    .custom-fsb--reached .custom-fsb__fill {
+      background: var(--fsb-fill-reached);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .custom-fsb__fill {
+        transition: none;
+      }
+    }
+  </style>
+{%- endif -%}
