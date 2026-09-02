@@ -229,6 +229,70 @@ la farebbe annunciare due volte.
 
 ---
 
+## Cosa succede quando aggiorni il tema
+
+Il punto va capito bene, perche' su questo negozio i temi si aggiornano spesso
+(4.1.4.09 -> 4.1.4.10 -> 4.1.5.01 -> 4.1.5.02 in cinque giorni).
+
+**Aggiornare non tocca il sito.** Shopify non sovrascrive il tema attivo: crea
+un tema nuovo, non pubblicato, con dentro i tuoi settaggi migrati. Il sito
+continua a girare sul vecchio finche' non pubblichi. La barra sparisce solo nel
+momento in cui **pubblichi** il tema nuovo senza averla reinstallata.
+
+Quello che il migratore di Shopify porta con se' e quello che lascia indietro,
+verificato sui tuoi temi:
+
+| | Sopravvive? | Verifica |
+|---|---|---|
+| `config/settings_data.json` (settaggi, app embed) | si | judge.me, zipchat, Forms e checkout-blocks sono ancora li' dopo tre aggiornamenti |
+| `templates/*.json`, `sections/*-group.json` (blocchi piazzati) | si | la fascia annunci con "FREE DHL EXPRESS OVER CHF 99" ha attraversato tutti i temi |
+| `blocks/ai_gen_*.liquid` (blocchi Sidekick) | si | `168a139`, `80b6619`, `c80aa7c` sono identici in tutti e quattro i temi |
+| file aggiunti a mano (`snippets/custom-*`, `sections/custom-*`) | **no** | vanno ricopiati |
+| modifiche a file del tema (la riga in `cart-summary.liquid`) | **no** | vanno rimesse |
+
+La regola dietro la tabella: **sopravvive tutto cio' che e' configurazione,
+non sopravvive niente di cio' che e' codice.**
+
+### Perche' nessuna scelta evita del tutto il problema
+
+Per arrivare **dentro il drawer** serve per forza toccare un file del tema:
+`snippets/cart-drawer.liquid` e `sections/cart-drawer-section.liquid` non
+accettano blocchi. E i file del tema vengono sostituiti. Non c'e' configurazione
+che aggiri questo, ne' con Sidekick ne' senza.
+
+Le alternative reali, con il loro prezzo:
+
+| Strada | Nel drawer? | Manutenzione a ogni pubblicazione |
+|---|---|---|
+| **Questa (snippet + 1 riga)** | si | 1 file da ricopiare + 1 riga da rimettere, ~2 minuti |
+| Blocco Sidekick sulla pagina /cart | **no**, solo su /cart | nessuna |
+| App dallo store (app embed) | si | nessuna, ma canone mensile e JavaScript in piu' |
+| Tema collegato a GitHub | si | nessuna, ma cambia il modo di lavorare sul tema |
+
+Il blocco Sidekick sopravviverebbe davvero, file e piazzamento. Ma finirebbe
+solo in fondo alla pagina `/cart`, che con `cart_type: "drawer"` e
+`auto_open_cart_drawer: true` vede una minoranza dei clienti. E' manutenzione
+zero su una barra che quasi nessuno guarda.
+
+### Come non restare mai scoperti
+
+La reinstallazione si fa **sul tema nuovo prima di pubblicarlo**, non dopo.
+L'Admin API scrive sui temi non pubblicati, quindi la sequenza e':
+
+1. aggiorni il tema (Shopify crea il tema nuovo, non pubblicato)
+2. reinstalli la barra sul tema nuovo
+3. pubblichi
+
+Cosi' il sito non passa mai un secondo senza la barra. Il momento pericoloso e'
+solo pubblicare al punto 2 saltando il 3.
+
+Il modo piu' veloce per il punto 2: aprire una sessione con il connettore
+Shopify e chiedere *"reinstalla la barra spedizione gratuita sul tema
+&lt;nome&gt;"*. Sono due chiamate API, sotto il minuto. In alternativa, a mano,
+i due passaggi dell'Installazione qui sopra.
+
+---
+
 ## Sopravvivere agli aggiornamenti del tema
 
 Su Shopify un aggiornamento **installa un tema nuovo**: i file aggiunti a mano
