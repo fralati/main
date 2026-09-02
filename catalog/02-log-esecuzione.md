@@ -136,3 +136,29 @@ tutti i riferimenti risultano attivi. Esempi:
 
 Fatto: correlati e complementari su tutto il catalogo attivo (208 shade + 226 prodotti).
 Non toccato, per scelta: tag, collezioni, product type, categoria standard, facet, URL.
+
+## Fase A-bis — Strumenti nei complementari delle shade (COMPLETATA, 2 settembre 2026)
+
+Su richiesta: aggiungere ciotola, mixer e pennello applicatore ai complementari delle tinte,
+ognuno **del proprio brand** dove esiste.
+
+Stato precedente: Vibrant (107 shade) e Pure Pigments (5) non avevano **nessuno strumento**
+fra i complementari, solo ossidante e cura post-colore. Grace aveva già pennello e ciotola NIKA
+ma non il mixer. Gems era già completa.
+
+Vincolo del catalogo: il **mixer esiste solo in versione NIKA**. Code Zero ha Bowl Black,
+Application Brush, Small Brush e Tech Brush, ma nessun mixer. Quindi il mixer entra solo
+sulle linee NIKA: mettere un accessorio NIKA accanto a una tinta Code Zero avrebbe rotto
+la coerenza di marca chiesta.
+
+| Linea | Complementari ora | Prodotti |
+|---|---|---|
+| Grace (NIKA) | Activators · Nika Bowl Black · Nika Application Brush · **Nika Mixer** · Color Fixx · Balancer | 72 |
+| Vibrant (Code Zero) | Oxidizer · **Bowl Black** · **Application Brush** · Color Fixx · Balancer | 107 |
+| Pure Pigments (Code Zero) | Oxidizer · **Bowl Black** · **Application Brush** · Color Fixx · Balancer | 5 |
+| Liquid Pigment .21 (NIKA) | Diamonds Blonde · **Nika Bowl Black** · **Nika Application Brush** · **Nika Mixer** | 1 |
+| Gems (Code Zero) | Gems C Clear · Application Brush · Bowl Black · Stabilizer | 21, invariate |
+
+185 metafield aggiornati, zero errori. Ordine scelto: prima lo sviluppatore o l'attivatore
+(obbligatorio per la miscela), poi gli strumenti, infine la cura post-colore, così un tema che
+mostra solo i primi tre propone comunque il necessario per il servizio.
