@@ -96,7 +96,7 @@ div:has(>#cq-root){width:100%!important;max-width:100%!important;flex:1 1 100%;a
 var ROOT=document.getElementById('cq-root');if(!ROOT)return;
 if(ROOT.parentElement){ROOT.parentElement.style.cssText+=';width:100%;max-width:100%;align-self:stretch;flex:1 1 100%';}
 /* If you know the CSS selector of the Zipchat launcher button, put it here (e.g. '#zipchat-launcher'). */
-var ZIPCHAT_SELECTOR='';
+var ZIPCHAT_SELECTOR='[data-zipchat="bubble-icon"],#bubble-icon';
 var LANG=ROOT.getAttribute('data-lang');
 var QS=[
  {k:'len',o:['buzz','short','medium','long','xlong']},
@@ -252,10 +252,14 @@ function prompt(){var p=L.p,o=[p.hi,'',p.prof];
  if(ln.length)o.push(p.L.lines+': '+ln.join('; '));
  o.push('');o.push(p.ask);p.steps.forEach(function(s,i){o.push((i+1)+'. '+s);});
  return o.join('\n');}
+function deepFind(sel,root){var el=null;try{el=root.querySelector(sel);}catch(e){}if(el)return el;
+ var all=root.querySelectorAll('*');for(var i=0;i<all.length&&!el;i++){if(all[i].shadowRoot)el=deepFind(sel,all[i].shadowRoot);}
+ if(!el&&root===document){var fr=document.querySelectorAll('iframe');for(var j=0;j<fr.length&&!el;j++){try{var d=fr[j].contentDocument;if(d)el=deepFind(sel,d);}catch(e){}}}
+ return el;}
 function openChat(){var tried=false;
- ['Zipchat','zipchat','ZipChat','zipChat'].forEach(function(n){var z=window[n];if(z&&!tried){['open','show','toggle','expand'].forEach(function(m){if(!tried&&typeof z[m]==='function'){try{z[m]();tried=true;}catch(e){}}});}});
- if(!tried){var sels=[ZIPCHAT_SELECTOR,'#zipchat-launcher','[id*="zipchat"] button','button[id*="zipchat"]','button[class*="zipchat"]','[class*="zipchat"] button','[id*="zipchat"]','[class*="zipchat-launcher"]'];
-  for(var i=0;i<sels.length&&!tried;i++){if(!sels[i])continue;var el=document.querySelector(sels[i]);if(el){try{el.click();tried=true;}catch(e){}}}}
+ var sels=[ZIPCHAT_SELECTOR,'#zipchat-launcher','[id*="zipchat"] button','button[id*="zipchat"]','button[class*="zipchat"]','[class*="zipchat"] button','[id*="zipchat"]'];
+ for(var i=0;i<sels.length&&!tried;i++){if(!sels[i])continue;var el=deepFind(sels[i],document);if(el){try{el.click();tried=true;}catch(e){}}}
+ if(!tried){['Zipchat','zipchat','ZipChat','zipChat'].forEach(function(n){var z=window[n];if(z&&!tried){['open','show','toggle','expand'].forEach(function(m){if(!tried&&typeof z[m]==='function'){try{z[m]();tried=true;}catch(e){}}});}});}
  try{window.dispatchEvent(new CustomEvent('zipchat:open'));}catch(e){}
  return tried;}
 function summary(P){var txt=prompt(),h='';
