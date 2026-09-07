@@ -7,7 +7,7 @@
 {% endcomment %}
 {%- assign cq_lang = request.locale.iso_code | slice: 0, 2 | downcase -%}
 <style>
-.cq{--cq-ink:var(--color-foreground,#111);--cq-bg:var(--color-background,#fff);--cq-acc:#b3202a;--cq-line:#e6e6e6;--cq-soft:#f5f5f5;--cq-r:14px;font-family:var(--font-body--family,Inter,system-ui,sans-serif);color:var(--cq-ink);background:var(--cq-bg);width:100%;box-sizing:border-box;padding:8px 0 24px}
+.cq{--cq-ink:var(--color-foreground,#111);--cq-bg:var(--color-background,#fff);--cq-acc:#b3202a;--cq-line:#e6e6e6;--cq-soft:#f5f5f5;--cq-sel:#fff4f4;--cq-line:color-mix(in srgb,var(--cq-ink) 13%,transparent);--cq-soft:color-mix(in srgb,var(--cq-ink) 5%,var(--cq-bg));--cq-sel:color-mix(in srgb,var(--cq-acc) 10%,var(--cq-bg));--cq-r:14px;font-family:var(--font-body--family,Inter,system-ui,sans-serif);color:var(--cq-ink);background:var(--cq-bg);width:100%;box-sizing:border-box;padding:8px 0 24px}
 .cq *{box-sizing:border-box}
 div:has(>#cq-root){width:100%!important;max-width:100%!important;flex:1 1 100%;align-self:stretch}
 .cq-toggle{appearance:none;width:100%;display:flex;align-items:center;gap:16px;padding:18px 4px;border:0;border-top:1px solid var(--cq-line);border-bottom:1px solid var(--cq-line);background:transparent;color:var(--cq-ink);font:inherit;text-align:left;cursor:pointer}
@@ -48,13 +48,13 @@ div:has(>#cq-root){width:100%!important;max-width:100%!important;flex:1 1 100%;a
 .cq-opts{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px}
 .cq-opt{appearance:none;border:1.5px solid var(--cq-line);background:var(--cq-bg);color:var(--cq-ink);border-radius:12px;padding:14px 12px;text-align:left;cursor:pointer;font:inherit;font-size:.92rem;line-height:1.25;transition:border-color .15s,background .15s,transform .15s;display:flex;align-items:center;gap:10px}
 .cq-opt:hover{border-color:var(--cq-ink);transform:translateY(-1px)}
-.cq-opt[aria-pressed=true]{border-color:var(--cq-acc);background:#fff4f4;box-shadow:inset 0 0 0 1px var(--cq-acc)}
-.cq-sw{width:22px;height:22px;border-radius:50%;flex:none;border:1px solid rgba(0,0,0,.15)}
+.cq-opt[aria-pressed=true]{border-color:var(--cq-acc);background:var(--cq-sel);box-shadow:inset 0 0 0 1px var(--cq-acc)}
+.cq-sw{width:22px;height:22px;border-radius:50%;flex:none;border:1px solid var(--cq-line)}
 .cq-nav{display:flex;justify-content:space-between;gap:10px;margin-top:22px}
-.cq-btn{appearance:none;border:1.5px solid var(--cq-ink);background:var(--cq-ink);color:#fff;border-radius:999px;padding:12px 22px;font:inherit;font-weight:600;font-size:.88rem;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;transition:opacity .15s}
+.cq-btn{appearance:none;border:1.5px solid var(--cq-ink);background:var(--cq-ink);color:var(--cq-bg);border-radius:999px;padding:12px 22px;font:inherit;font-weight:600;font-size:.88rem;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;transition:opacity .15s}
 .cq-btn:disabled{opacity:.35;cursor:not-allowed}
 .cq-btn.ghost{background:transparent;color:var(--cq-ink)}
-.cq-btn.acc{background:var(--cq-acc);border-color:var(--cq-acc)}
+.cq-btn.acc{background:var(--cq-acc);border-color:var(--cq-acc);color:#fff}
 .cq-start{text-align:center;padding:30px 10px}
 .cq-start p{max-width:52ch;margin:0 auto 18px;opacity:.85}
 .cq-sum h3{margin:18px 0 8px;font-size:1rem}
@@ -95,6 +95,8 @@ div:has(>#cq-root){width:100%!important;max-width:100%!important;flex:1 1 100%;a
 (function(){
 var ROOT=document.getElementById('cq-root');if(!ROOT)return;
 if(ROOT.parentElement){ROOT.parentElement.style.cssText+=';width:100%;max-width:100%;align-self:stretch;flex:1 1 100%';}
+(function(){try{var el=ROOT.parentElement,bg='';while(el&&el!==document.documentElement){var c=getComputedStyle(el).backgroundColor;if(c&&c!=='transparent'&&!/rgba\(\s*\d+,\s*\d+,\s*\d+,\s*0\)/.test(c)){bg=c;break;}el=el.parentElement;}
+ var ink=getComputedStyle(ROOT.parentElement).color;if(bg){ROOT.style.setProperty('--cq-bg',bg);}if(ink){ROOT.style.setProperty('--cq-ink',ink);}}catch(e){}})();
 /* If you know the CSS selector of the Zipchat launcher button, put it here (e.g. '#zipchat-launcher'). */
 var ZIPCHAT_SELECTOR='[data-zipchat="bubble-icon"],#bubble-icon';
 var LANG=ROOT.getAttribute('data-lang');
@@ -168,7 +170,7 @@ function avatar(fx){var T=target();if(RM||!VIEW){VIEW=T;draw(T,false);return;}
   for(var k in T){o[k]=Array.isArray(T[k])?mixA(A[k],T[k],e):A[k]+(T[k]-A[k])*e;}
   VIEW=o;draw(o,p===1&&fx);if(p<1)RAF=requestAnimationFrame(frame);});}
 function edge(x,y0,y1,amp,per,seed){var d='',y=y0,i=0,dir=y1>y0?1:-1;if(amp<.15)return 'L'+x+' '+y1+' ';while(dir>0?y<y1:y>y1){var ny=dir>0?Math.min(y+per,y1):Math.max(y-per,y1),s=(i%2?1:-1)*amp*(0.7+0.6*rnd(seed+i));d+='Q'+(x+s).toFixed(1)+' '+((y+ny)/2).toFixed(1)+' '+x+' '+ny.toFixed(1)+' ';y=ny;i++;}return d;}
-function draw(V,fx){var root=rgb(V.root),ends=rgb(V.ends),bot=V.bottom,hasBack=bot>92,buzz=cl(1-bot/138,0,1),b1=0.12+0.23*(1-V.band),w=V.w,xl=100-w,xr=100+w,BG='#f4f1ee';
+function draw(V,fx){var root=rgb(V.root),ends=rgb(V.ends),bot=V.bottom,hasBack=bot>92,buzz=cl(1-bot/138,0,1),b1=0.12+0.23*(1-V.band),w=V.w,xl=100-w,xr=100+w,BG='var(--cq-soft,#f4f1ee)';
  var s='<svg viewBox="0 0 300 270" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>'
  +'<linearGradient id="cqg" gradientUnits="userSpaceOnUse" x1="0" y1="40" x2="0" y2="'+(hasBack?bot:150)+'"><stop offset="0" stop-color="'+rgb(mixA(V.root,[207,207,207],V.capGrey))+'"/><stop offset=".1" stop-color="'+root+'"/><stop offset="'+b1.toFixed(3)+'" stop-color="'+root+'"/><stop offset="'+(b1+.06).toFixed(3)+'" stop-color="'+rgb(mixA(V.root,V.ends,V.band))+'"/><stop offset="1" stop-color="'+ends+'"/></linearGradient>'
  +'<radialGradient id="cqs"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>'
@@ -185,9 +187,9 @@ function draw(V,fx){var root=rgb(V.root),ends=rgb(V.ends),bot=V.bottom,hasBack=b
  s+='<clipPath id="cqhair">'+(back?'<path d="'+back+'"/>':'')+'<path d="'+cap+'"/></clipPath>';
  var lx=hasBack?100+w*.55:124,ly=hasBack?cl(bot-30,108,150):64;
  s+='<clipPath id="cqlens"><circle cx="'+lx+'" cy="'+ly+'" r="15"/></clipPath></defs>';
- s+='<rect width="200" height="270" rx="16" fill="'+BG+'"/><rect x="210" y="10" width="80" height="250" rx="12" fill="'+BG+'"/>';
+ s+='<rect width="200" height="270" rx="16" style="fill:'+BG+'"/><rect x="210" y="10" width="80" height="250" rx="12" style="fill:'+BG+'"/>';
  s+='<circle cx="100" cy="118" r="88" fill="#fff" opacity=".35"/>';
- s+='<path d="M60 270 V232 Q100 214 140 232 V270Z" fill="#e9e4de"/>';
+ s+='<path d="M60 270 V232 Q100 214 140 232 V270Z" style="fill:var(--cq-line,#e9e4de)"/>';
  if(back){s+='<path d="'+back+'" fill="url(#cqg)"/>';
   if(V.frizz>.02){var f='';for(var i=0;i<26;i++){var side=i%2?xr:xl,yy=95+rnd(i*3)*(bot-100),dx=(i%2?1:-1)*(6+rnd(i*5)*10);f+='M'+side+' '+yy.toFixed(1)+' q'+(dx*.5)+' '+(-4-rnd(i)*6).toFixed(1)+' '+dx+' '+(-2+rnd(i*7)*8).toFixed(1)+' ';}s+='<path d="'+f+'" stroke="'+ends+'" stroke-width="1.2" fill="none" opacity="'+(V.frizz*.8).toFixed(2)+'"/>';}
   if(V.split>.02){var sp='';for(var j=0;j<9;j++){var sx=xl+8+j*((xr-xl-16)/8);sp+='M'+sx.toFixed(1)+' '+(bot-2)+' l-3 9 M'+sx.toFixed(1)+' '+(bot-2)+' l3 9 ';}s+='<path d="'+sp+'" stroke="'+ends+'" stroke-width="1.4" fill="none" opacity="'+V.split.toFixed(2)+'"/>';}}
@@ -214,7 +216,7 @@ function draw(V,fx){var root=rgb(V.root),ends=rgb(V.ends),bot=V.bottom,hasBack=b
  s+='<path d="'+line+'" stroke="url(#cqst)" stroke-width="'+V.tw.toFixed(1)+'" fill="none" stroke-linecap="round"/><path d="'+line+'" stroke="url(#cqsr)" stroke-width="'+V.tw.toFixed(1)+'" fill="none" stroke-linecap="round"/>';
  var sc='';for(var i2=3;i2<pts.length-3;i2+=3){var p=pts[i2],lift=Math.max(0,V.lvl-rnd(i2)*3)*1.3;sc+='M'+(p[0]-hw-lift).toFixed(1)+' '+(p[1]-lift).toFixed(1)+' L'+p[0].toFixed(1)+' '+(p[1]+4)+' L'+(p[0]+hw+lift).toFixed(1)+' '+(p[1]-lift).toFixed(1)+' ';}
  s+='<path d="'+sc+'" stroke="#fff" stroke-opacity="'+(.3+.1*V.lvl).toFixed(2)+'" stroke-width="1" fill="none"/>';
- var ga=cl(V.lvl-2,0,1);if(ga>.02){for(var g=0;g<4;g++){var pg=pts[8+g*14];s+='<rect x="'+(pg[0]-hw-1).toFixed(1)+'" y="'+pg[1]+'" width="'+(V.tw*.45).toFixed(1)+'" height="4" fill="'+BG+'" opacity="'+ga.toFixed(2)+'"/>';}}
+ var ga=cl(V.lvl-2,0,1);if(ga>.02){for(var g=0;g<4;g++){var pg=pts[8+g*14];s+='<rect x="'+(pg[0]-hw-1).toFixed(1)+'" y="'+pg[1]+'" width="'+(V.tw*.45).toFixed(1)+'" height="4" style="fill:'+BG+'" opacity="'+ga.toFixed(2)+'"/>';}}
  s+='<path d="'+line+'" stroke="#fff" stroke-width="1.6" fill="none" stroke-linecap="round" transform="translate('+(-hw+2.2).toFixed(1)+' 0)" opacity="'+(V.shine*.45).toFixed(2)+'"/>';
  if(V.frizz>.02){var fb='';for(var i3=0;i3<8;i3++){var pf=pts[4+i3*7],dr2=i3%2?1:-1;fb+='M'+(pf[0]+dr2*hw).toFixed(1)+' '+pf[1]+' q'+(dr2*5)+' -3 '+(dr2*9)+' -9 ';}s+='<path d="'+fb+'" stroke="'+ends+'" stroke-width="1" fill="none" opacity="'+(V.frizz*.7).toFixed(2)+'"/>';}
  var e=pts[pts.length-1];s+='<path d="M'+e[0].toFixed(1)+' '+(e[1]-4)+' l-6 14 M'+e[0].toFixed(1)+' '+(e[1]-4)+' l6 14" stroke="'+ends+'" stroke-width="'+(V.tw*.45).toFixed(1)+'" stroke-linecap="round" fill="none" opacity="'+V.split.toFixed(2)+'"/>';
@@ -256,6 +258,8 @@ function deepFind(sel,root){var el=null;try{el=root.querySelector(sel);}catch(e)
  var all=root.querySelectorAll('*');for(var i=0;i<all.length&&!el;i++){if(all[i].shadowRoot)el=deepFind(sel,all[i].shadowRoot);}
  if(!el&&root===document){var fr=document.querySelectorAll('iframe');for(var j=0;j<fr.length&&!el;j++){try{var d=fr[j].contentDocument;if(d)el=deepFind(sel,d);}catch(e){}}}
  return el;}
+function fillChat(txt){var n=0,t=setInterval(function(){n++;var el=deepFind('[data-zipchat] textarea,[data-zipchat] input[type="text"],[id*="zipchat"] textarea,[class*="zipchat"] textarea,textarea[placeholder*="essag"]',document);
+ if(el){try{el.focus();el.value=txt;el.dispatchEvent(new Event('input',{bubbles:true}));}catch(e){}clearInterval(t);}else if(n>20)clearInterval(t);},250);}
 function openChat(){var tried=false;
  var sels=[ZIPCHAT_SELECTOR,'#zipchat-launcher','[id*="zipchat"] button','button[id*="zipchat"]','button[class*="zipchat"]','[class*="zipchat"] button','[id*="zipchat"]'];
  for(var i=0;i<sels.length&&!tried;i++){if(!sels[i])continue;var el=deepFind(sels[i],document);if(el){try{el.click();tried=true;}catch(e){}}}
@@ -271,7 +275,7 @@ function summary(P){var txt=prompt(),h='';
  var cp=document.getElementById('cq-copy');
  function copy(){var ta=document.getElementById('cq-txt');var done=function(){cp.textContent=L.copied;setTimeout(function(){cp.textContent=L.copy;},1800);};if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(ta.value).then(done,function(){ta.select();document.execCommand('copy');done();});}else{ta.select();document.execCommand('copy');done();}}
  cp.onclick=copy;
- document.getElementById('cq-open').onclick=function(){copy();openChat();};
+ document.getElementById('cq-open').onclick=function(){copy();openChat();fillChat(txt);};
  document.getElementById('cq-restart').onclick=function(){S={};step=0;save();render(true);};
 }
 ['kick','title','sub','ask','ask2'].forEach(function(k){var el=ROOT.querySelector('[data-t="'+k+'"]');if(el)el.textContent=L[k];});
