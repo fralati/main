@@ -5,22 +5,19 @@ an SVG avatar (head of hair) and a magnified single strand are rebuilt from the
 answers. At the end the quiz generates a prompt, in the visitor's language
 (EN, IT, DE, FR), to paste into clichAIr (the Zipchat AI assistant).
 
-File: `snippets/clichair-hair-quiz.liquid` (about 39 KB, under the 50 KB
+File: `snippets/clichair-hair-quiz.liquid` (about 47 KB, under the 50 KB
 limit of a single Liquid setting).
 
 ## Install
 
-Option A, snippet + Custom Liquid block (recommended):
+Paste the whole file into the Custom Liquid block on the home page
+(theme editor > Custom section > Custom Liquid > Liquid code) and save.
+The block content is stored in the template settings, so it survives theme
+version updates. Do not add it as a snippet: code files are not carried
+over when the theme is updated.
 
-1. Online Store > Themes > Horizon > Edit code > Snippets > Add a new snippet
-   named `clichair-hair-quiz` and paste the content of the file.
-2. In the theme editor, in the Custom Liquid block on the home page, enter:
-
-   ```liquid
-   {% render 'clichair-hair-quiz' %}
-   ```
-
-Option B, paste the whole file directly into the Custom Liquid block.
+The section renders as a single collapsed line ("Want to take your Hair
+Quiz?"); clicking it expands the quiz.
 
 ## Zipchat launcher
 
