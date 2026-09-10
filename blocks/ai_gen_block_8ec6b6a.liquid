@@ -198,9 +198,13 @@
       assign sib_kind = 'line'
     endif
 
-    # context: product opened from a collection URL (/collections/x/products/y)
-    if collection != blank and s.enable_context
-      assign ctx_col = collection
+    # context: product opened from a collection URL (/collections/x/products/y).
+    # Only a real collection of this product counts (the editor can pass an empty object).
+    if s.enable_context and collection != blank and collection.handle != blank and collection.title != blank
+      assign ckey = collection.handle | append: ','
+      if product_handles contains ckey
+        assign ctx_col = collection
+      endif
     endif
 
     # crumbs
@@ -505,6 +509,7 @@
   .ccbc__link:focus-visible { outline:2px solid currentColor; outline-offset:3px; border-radius:2px; }
   .ccbc__current { color:var(--ccbc-fg); font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:min(60vw, 34ch); display:inline-flex; align-items:center; gap:.5em; }
   .ccbc__thumb { width:1.5em; height:1.5em; border-radius:50%; object-fit:cover; box-shadow:0 0 0 1px var(--ccbc-faint); flex:none; }
+  .ccbc__item--ctx { margin-inline-end:.8em; }
   .ccbc__ctx { display:inline-flex; align-items:center; gap:.4em; padding:.15em .7em .15em .55em; border:1px solid var(--ccbc-faint); border-radius:999px; color:var(--ccbc-fg); text-decoration:none; font-size:.92em; background:transparent; transition:background .18s ease, border-color .18s ease; }
   .ccbc__ctx:hover { background:var(--ccbc-faint); border-color:transparent; }
   .ccbc__ctx svg { width:.9em; height:.9em; }
@@ -578,6 +583,7 @@
   data-col-handle="{{ cur_col.handle }}"
   data-col-title="{{ cur_col.title | default: collection.title | strip_html | escape }}"
   data-fn-prefix="{{ fn_prefix | escape }}"
+  data-collections-url="{{ routes.collections_url }}"
   data-col-url="{{ cur_col.url }}"
   data-current="{{ p.handle }}"
   {{ block.shopify_attributes }}
@@ -789,6 +795,9 @@
     }
     if (page !== 'product' || !enabled) return;
     var slot = nav.querySelector('[data-ccbc-ctx]'); if (!slot) return;
+    // Only when there is a reason: the visitor navigated here from within the shop.
+    var ref = document.referrer || '';
+    if (ref.indexOf(location.origin + '/') !== 0) return;
     var ctx = readCtx(); if (!ctx || !ctx.h) return;
     var handles = ',' + (nav.getAttribute('data-handles') || '') ;
     var canon = ',' + (nav.getAttribute('data-canon') || '');
@@ -798,8 +807,10 @@
     var pre = (nav.getAttribute('data-fn-prefix') || '').trim();
     if (pre && title.indexOf(pre + ' ') === 0) title = title.slice(pre.length + 1);
     title = title.replace(/ Collection$/, '').trim();
-    if (!title || !ctx.u) return;
-    slot.querySelector('a').setAttribute('href', ctx.u);
+    if (!title) return;
+    // rebuild the URL in the current language (the stored one may come from another locale)
+    var colBase = nav.getAttribute('data-collections-url') || '/collections';
+    slot.querySelector('a').setAttribute('href', colBase.replace(/\/$/, '') + '/' + ctx.h);
     slot.querySelector('[data-ccbc-ctx-title]').textContent = title;
     slot.hidden = false;
   }
