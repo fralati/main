@@ -9,6 +9,24 @@ placements live in the JSON templates, which the updater migrates.
 | --- | --- |
 | `ai_gen_block_8ec6b6a.liquid` | Smart breadcrumb (path Home / Brand / Line / Product, context crumb, function chip, sibling popovers, shade switcher, sticky bar, JSON-LD). |
 
+## Taxonomy (metafield `custom.breadcrumb_parent` on collections)
+
+The path is built from a collection metafield, so it works in every
+language (translated titles drop the brand prefix, so titles cannot be
+trusted). Every collection carries `custom.breadcrumb_parent`:
+
+| Value | Meaning |
+| --- | --- |
+| `root` | brand collection (Code Zero, Edelstein, Nika) |
+| `<handle>` | parent collection, e.g. `edelstein`, `xflex`, `bio-collection` |
+| `clichair` | functional collection, feeds the "For" chip (Care, Colouring, Hair Gel, Men) |
+| `hidden` | marketing showcase, never part of the path (Trending, Outlet, Sale, BFCM, Marketing) |
+
+A new collection without the metafield falls back to English title
+prefixes ("Edelstein Xflex Gel" is read as a child of Edelstein), which
+only works on English pages. Set the metafield in the collection admin
+page to make it language independent.
+
 ## Re-upload after a theme update
 
 Only needed if the updated copy is missing the file (check `blocks/` in the

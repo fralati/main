@@ -100,7 +100,6 @@
   assign fn_col = blank
   assign fallback_col = blank
   assign ctx_col = blank
-  assign sib_prefix = ''
   assign sib_kind = ''
   assign is_color = false
   assign current_label = ''
@@ -112,11 +111,33 @@
   assign c_kinds = ''
   assign product_handles = ''
 
+  # ---------- taxonomy ----------
+  # Each collection carries metafield custom.breadcrumb_parent (locale independent):
+  #   root      = brand collection
+  #   clichair  = functional collection (feeds the "For" chip)
+  #   hidden    = marketing showcase, never part of the path
+  #   <handle>  = parent collection (brand or intermediate line)
+  # Collections without the metafield fall back to English title prefixes.
+  assign line_grand = blank
+  assign sp1 = ''
+  assign sp2 = ''
+  assign sp3 = ''
+  assign c_sibs = ''
+
   # ================= PRODUCT =================
   if mode == 'product' and p != blank
     assign vendor_handle = p.vendor | handleize
     if vendor_handle != blank
       assign brand_col = collections[vendor_handle]
+    endif
+    if brand_col.title == blank
+      for c in p.collections
+        assign par = c.metafields.custom.breadcrumb_parent.value | strip
+        if par == 'root'
+          assign brand_col = c
+          break
+        endif
+      endfor
     endif
     if brand_col.title == blank
       assign vt = p.vendor | downcase
@@ -136,66 +157,85 @@
     for c in p.collections
       assign product_handles = product_handles | append: c.handle | append: ','
       assign hkey = ',' | append: c.handle | append: ','
-      if excluded contains hkey
+      assign par = c.metafields.custom.breadcrumb_parent.value | strip
+      if excluded contains hkey or par == 'hidden' or par == 'root' or c.handle == brand_col.handle
         continue
       endif
       assign n = c.all_products_count
-      assign is_brand_child = false
-      if brand_col.title != blank and c.handle != brand_col.handle
-        assign pre = c.title | slice: 0, brand_title_sp.size
-        if pre == brand_title_sp
-          assign is_brand_child = true
+      assign role = ''
+      if par == 'clichair'
+        assign role = 'fn'
+      elsif par != blank
+        assign role = 'line'
+      else
+        if brand_col.title != blank
+          assign pre = c.title | slice: 0, brand_title_sp.size
+          if pre == brand_title_sp
+            assign role = 'line'
+          endif
+        endif
+        if role == '' and fn_prefix != blank
+          assign pre = c.title | slice: 0, fn_prefix_sp.size
+          if pre == fn_prefix_sp
+            assign role = 'fn'
+          endif
         endif
       endif
-      assign is_fn = false
-      if fn_prefix != blank
-        assign pre = c.title | slice: 0, fn_prefix_sp.size
-        if pre == fn_prefix_sp
-          assign is_fn = true
-        endif
-      endif
-      if is_brand_child
+      if role == 'line'
         if n < line_min
           assign line_col = c
           assign line_min = n
         endif
-      elsif is_fn
+      elsif role == 'fn'
         if n < fn_min
           assign fn_col = c
           assign fn_min = n
         endif
-      elsif c.handle != brand_col.handle and n < fb_min
+      elsif n < fb_min
         assign fallback_col = c
         assign fb_min = n
       endif
     endfor
 
-    # intermediate line (e.g. Edelstein > Xflex > Xflex Gel)
+    # ancestors between brand and line (up to two levels)
     if line_col != blank
-      assign line_rest = line_col.title | remove_first: brand_title_sp
-      assign line_first = line_rest | split: ' ' | first
-      assign lp_max = 0
-      for c in p.collections
-        assign hkey = ',' | append: c.handle | append: ','
-        if excluded contains hkey or c.handle == line_col.handle or c.handle == brand_col.handle
-          continue
+      assign par = line_col.metafields.custom.breadcrumb_parent.value | strip
+      if par != blank
+        if par != 'root' and par != 'clichair' and par != brand_col.handle
+          assign a1 = collections[par]
+          if a1.title != blank
+            assign line_parent = a1
+            assign par2 = a1.metafields.custom.breadcrumb_parent.value | strip
+            if par2 != blank and par2 != 'root' and par2 != 'clichair' and par2 != brand_col.handle
+              assign a2 = collections[par2]
+              if a2.title != blank
+                assign line_grand = a2
+              endif
+            endif
+          endif
         endif
-        assign pre = c.title | slice: 0, brand_title_sp.size
-        if pre != brand_title_sp
-          continue
-        endif
-        assign rest = c.title | remove_first: brand_title_sp
-        assign rf = rest | split: ' ' | first
-        if rf == line_first and c.all_products_count > lp_max
-          assign line_parent = c
-          assign lp_max = c.all_products_count
-        endif
-      endfor
-    endif
-
-    if brand_col.title != blank
-      assign sib_prefix = brand_title_sp
-      assign sib_kind = 'line'
+      elsif brand_col.title != blank
+        # legacy heuristic without metafields: shared first word after the brand prefix
+        assign line_rest = line_col.title | remove_first: brand_title_sp
+        assign line_first = line_rest | split: ' ' | first
+        assign lp_max = 0
+        for c in p.collections
+          assign hkey = ',' | append: c.handle | append: ','
+          if excluded contains hkey or c.handle == line_col.handle or c.handle == brand_col.handle
+            continue
+          endif
+          assign pre = c.title | slice: 0, brand_title_sp.size
+          if pre != brand_title_sp
+            continue
+          endif
+          assign rest = c.title | remove_first: brand_title_sp
+          assign rf = rest | split: ' ' | first
+          if rf == line_first and c.all_products_count > lp_max
+            assign line_parent = c
+            assign lp_max = c.all_products_count
+          endif
+        endfor
+      endif
     endif
 
     # context: product opened from a collection URL (/collections/x/products/y).
@@ -212,30 +252,42 @@
       assign c_labels = c_labels | append: brand_col.title | append: sep
       assign c_urls = c_urls | append: brand_col.url | append: sep
       assign c_kinds = c_kinds | append: 'brand' | append: sep
+      assign c_sibs = c_sibs | append: 'brand' | append: sep
+    endif
+    if line_grand != blank
+      assign lbl = line_grand.title | remove_first: brand_title_sp
+      assign c_labels = c_labels | append: lbl | append: sep
+      assign c_urls = c_urls | append: line_grand.url | append: sep
+      assign c_kinds = c_kinds | append: 'line' | append: sep
+      assign c_sibs = c_sibs | append: '3' | append: sep
     endif
     if line_parent != blank
       assign lbl = line_parent.title | remove_first: brand_title_sp
       assign c_labels = c_labels | append: lbl | append: sep
       assign c_urls = c_urls | append: line_parent.url | append: sep
       assign c_kinds = c_kinds | append: 'line' | append: sep
+      assign c_sibs = c_sibs | append: '2' | append: sep
     endif
     if line_col != blank
       assign lbl = line_col.title | remove_first: brand_title_sp
       assign c_labels = c_labels | append: lbl | append: sep
       assign c_urls = c_urls | append: line_col.url | append: sep
       assign c_kinds = c_kinds | append: 'line' | append: sep
+      assign c_sibs = c_sibs | append: '1' | append: sep
     elsif brand_col.title == blank
       if fallback_col != blank
         assign lbl = fallback_col.title | remove_first: fn_prefix_sp | remove: ' Collection'
         assign c_labels = c_labels | append: lbl | append: sep
         assign c_urls = c_urls | append: fallback_col.url | append: sep
         assign c_kinds = c_kinds | append: 'line' | append: sep
+        assign c_sibs = c_sibs | append: '1' | append: sep
         assign line_col = fallback_col
       elsif fn_col != blank
         assign lbl = fn_col.title | remove_first: fn_prefix_sp | remove: ' Collection'
         assign c_labels = c_labels | append: lbl | append: sep
         assign c_urls = c_urls | append: fn_col.url | append: sep
         assign c_kinds = c_kinds | append: 'line' | append: sep
+        assign c_sibs = c_sibs | append: '1' | append: sep
         assign line_col = fn_col
         assign fn_col = blank
       endif
@@ -267,128 +319,188 @@
     assign c_labels = c_labels | append: current_label | append: sep
     assign c_urls = c_urls | append: p.url | append: sep
     assign c_kinds = c_kinds | append: 'current' | append: sep
+    assign c_sibs = c_sibs | append: '' | append: sep
 
   # ================= COLLECTION =================
   elsif mode == 'collection' and cur_col != blank
-    assign cur_title_sp = cur_col.title | append: ' '
-    for bh in brand_handles
-      assign b = collections[bh]
-      if b.title == blank
-        continue
-      endif
-      if cur_col.handle == bh
-        assign sib_prefix = ''
-        assign sib_kind = 'brand'
-        break
-      endif
-      assign bsp = b.title | append: ' '
-      assign pre = cur_col.title | slice: 0, bsp.size
-      if pre == bsp
-        assign brand_col = b
-        assign brand_title_sp = bsp
-        assign sib_prefix = bsp
-        assign sib_kind = 'line'
-        break
-      endif
-    endfor
-    if brand_col == blank and sib_kind == '' and fn_prefix != blank
-      assign pre = cur_col.title | slice: 0, fn_prefix_sp.size
-      if pre == fn_prefix_sp
-        assign sib_prefix = fn_prefix_sp
-        assign sib_kind = 'fn'
-      endif
-    endif
-
-    # intermediate parent for the current collection (longest prefix among brand lines)
-    if brand_col != blank
-      assign lp_len = 0
-      for i in (0..2)
-        assign off = i | times: 50
-        for c in collections offset: off limit: 50
-          if c.handle == cur_col.handle or c.handle == brand_col.handle
-            continue
+    assign par = cur_col.metafields.custom.breadcrumb_parent.value | strip
+    if par == 'root'
+      assign sib_kind = 'brand'
+    elsif par == 'clichair'
+      assign sib_kind = 'fn'
+    elsif par == 'hidden'
+      assign sib_kind = ''
+    elsif par != blank
+      assign sib_kind = 'line'
+      assign a1 = collections[par]
+      if a1.title != blank
+        assign p1 = a1.metafields.custom.breadcrumb_parent.value | strip
+        if p1 == 'root' or p1 == blank
+          assign brand_col = a1
+        else
+          assign line_parent = a1
+          assign a2 = collections[p1]
+          if a2.title != blank
+            assign p2 = a2.metafields.custom.breadcrumb_parent.value | strip
+            if p2 == 'root' or p2 == blank
+              assign brand_col = a2
+            else
+              assign line_grand = a2
+              assign a3 = collections[p2]
+              if a3.title != blank
+                assign brand_col = a3
+              endif
+            endif
           endif
-          assign hkey = ',' | append: c.handle | append: ','
-          if excluded contains hkey
-            continue
-          endif
-          assign csp = c.title | append: ' '
-          if csp.size >= cur_title_sp.size
-            continue
-          endif
-          assign pre = cur_title_sp | slice: 0, csp.size
-          if pre == csp and csp.size > lp_len
-            assign line_parent = c
-            assign lp_len = csp.size
-          endif
-        endfor
+        endif
+      endif
+    else
+      # legacy heuristic without metafields (English title prefixes)
+      assign cur_title_sp = cur_col.title | append: ' '
+      for bh in brand_handles
+        assign b = collections[bh]
+        if b.title == blank
+          continue
+        endif
+        if cur_col.handle == bh
+          assign sib_kind = 'brand'
+          break
+        endif
+        assign bsp = b.title | append: ' '
+        assign pre = cur_col.title | slice: 0, bsp.size
+        if pre == bsp
+          assign brand_col = b
+          assign sib_kind = 'line'
+          break
+        endif
       endfor
+      if brand_col == blank and sib_kind == '' and fn_prefix != blank
+        assign pre = cur_col.title | slice: 0, fn_prefix_sp.size
+        if pre == fn_prefix_sp
+          assign sib_kind = 'fn'
+        endif
+      endif
+      if brand_col != blank
+        assign bsp = brand_col.title | append: ' '
+        assign lp_len = 0
+        for i in (0..2)
+          assign off = i | times: 50
+          for c in collections offset: off limit: 50
+            if c.handle == cur_col.handle or c.handle == brand_col.handle
+              continue
+            endif
+            assign hkey = ',' | append: c.handle | append: ','
+            if excluded contains hkey
+              continue
+            endif
+            assign csp = c.title | append: ' '
+            if csp.size >= cur_title_sp.size or csp.size <= bsp.size
+              continue
+            endif
+            assign pre = cur_title_sp | slice: 0, csp.size
+            if pre == csp and csp.size > lp_len
+              assign line_parent = c
+              assign lp_len = csp.size
+            endif
+          endfor
+        endfor
+      endif
     endif
+    assign brand_title_sp = brand_col.title | append: ' '
 
-    if brand_col != blank
+    if brand_col != blank and brand_col.title != blank
       assign c_labels = c_labels | append: brand_col.title | append: sep
       assign c_urls = c_urls | append: brand_col.url | append: sep
       assign c_kinds = c_kinds | append: 'brand' | append: sep
+      assign c_sibs = c_sibs | append: 'brand' | append: sep
+    endif
+    if line_grand != blank
+      assign lbl = line_grand.title | remove_first: brand_title_sp
+      assign c_labels = c_labels | append: lbl | append: sep
+      assign c_urls = c_urls | append: line_grand.url | append: sep
+      assign c_kinds = c_kinds | append: 'line' | append: sep
+      assign c_sibs = c_sibs | append: '3' | append: sep
     endif
     if line_parent != blank
       assign lbl = line_parent.title | remove_first: brand_title_sp
       assign c_labels = c_labels | append: lbl | append: sep
       assign c_urls = c_urls | append: line_parent.url | append: sep
       assign c_kinds = c_kinds | append: 'line' | append: sep
+      assign c_sibs = c_sibs | append: '2' | append: sep
     endif
     assign current_label = cur_col.title
-    if brand_col != blank
+    if brand_col != blank and brand_col.title != blank
       assign current_label = current_label | remove_first: brand_title_sp
-    elsif sib_kind == 'fn'
+    endif
+    if fn_prefix != blank
       assign current_label = current_label | remove_first: fn_prefix_sp | remove: ' Collection'
     endif
     assign c_labels = c_labels | append: current_label | append: sep
     assign c_urls = c_urls | append: cur_col.url | append: sep
     assign c_kinds = c_kinds | append: 'current' | append: sep
+    if sib_kind == 'brand'
+      assign c_sibs = c_sibs | append: 'brand' | append: sep
+    elsif sib_kind != ''
+      assign c_sibs = c_sibs | append: '1' | append: sep
+    else
+      assign c_sibs = c_sibs | append: '' | append: sep
+    endif
 
   # ================= OTHER PAGES =================
   elsif mode == 'page' and page != blank
     assign c_labels = c_labels | append: page.title | append: sep
     assign c_urls = c_urls | append: page.url | append: sep
     assign c_kinds = c_kinds | append: 'current' | append: sep
+    assign c_sibs = c_sibs | append: '' | append: sep
   elsif mode == 'article' and article != blank
     assign c_labels = c_labels | append: blog.title | append: sep
     assign c_urls = c_urls | append: blog.url | append: sep
     assign c_kinds = c_kinds | append: 'page' | append: sep
+    assign c_sibs = c_sibs | append: '' | append: sep
     assign c_labels = c_labels | append: article.title | append: sep
     assign c_urls = c_urls | append: article.url | append: sep
     assign c_kinds = c_kinds | append: 'current' | append: sep
+    assign c_sibs = c_sibs | append: '' | append: sep
   elsif mode == 'blog' and blog != blank
     assign c_labels = c_labels | append: blog.title | append: sep
     assign c_urls = c_urls | append: blog.url | append: sep
     assign c_kinds = c_kinds | append: 'current' | append: sep
+    assign c_sibs = c_sibs | append: '' | append: sep
   elsif mode == 'search'
     assign c_labels = c_labels | append: t_search | append: sep
     assign c_urls = c_urls | append: routes.search_url | append: sep
     assign c_kinds = c_kinds | append: 'current' | append: sep
+    assign c_sibs = c_sibs | append: '' | append: sep
   elsif mode == 'cart'
     assign c_labels = c_labels | append: t_cart | append: sep
     assign c_urls = c_urls | append: routes.cart_url | append: sep
     assign c_kinds = c_kinds | append: 'current' | append: sep
+    assign c_sibs = c_sibs | append: '' | append: sep
   elsif mode contains 'customers'
     assign c_labels = c_labels | append: t_account | append: sep
     assign c_urls = c_urls | append: routes.account_url | append: sep
     assign c_kinds = c_kinds | append: 'current' | append: sep
+    assign c_sibs = c_sibs | append: '' | append: sep
   elsif mode != 'index' and page_title != blank
     assign c_labels = c_labels | append: page_title | append: sep
     assign c_urls = c_urls | append: request.path | append: sep
     assign c_kinds = c_kinds | append: 'current' | append: sep
+    assign c_sibs = c_sibs | append: '' | append: sep
   endif
 
   assign labels = c_labels | split: sep
   assign urls = c_urls | split: sep
   assign kinds = c_kinds | split: sep
+  assign sibs = c_sibs | split: sep
   assign crumb_count = labels.size
 
   # canonical handles (used by JS to decide whether a context crumb is redundant)
   assign canon_handles = ''
   if brand_col != blank and brand_col.title != blank
     assign canon_handles = canon_handles | append: brand_col.handle | append: ','
+  endif
+  if line_grand != blank
+    assign canon_handles = canon_handles | append: line_grand.handle | append: ','
   endif
   if line_parent != blank
     assign canon_handles = canon_handles | append: line_parent.handle | append: ','
@@ -406,13 +518,45 @@
     endif
   endif
 
-  # ---------- sibling list (server rendered, shared by brand/line crumbs) ----------
+  # ---------- sibling lists: collections sharing the same parent as each crumb ----------
   assign show_siblings = s.show_siblings
-  assign sib_current = ''
+  assign sib1_current = ''
+  assign sib2_current = ''
+  assign sib3_current = ''
   if mode == 'collection'
-    assign sib_current = cur_col.handle
+    assign sib1_current = cur_col.handle
+    if sib_kind == 'fn'
+      assign sp1 = 'clichair'
+    elsif sib_kind == 'line'
+      assign sp1 = cur_col.metafields.custom.breadcrumb_parent.value | strip
+      if sp1 == blank and brand_col.title != blank
+        assign sp1 = brand_col.handle
+      endif
+    endif
   elsif line_col != blank
-    assign sib_current = line_col.handle
+    assign sib1_current = line_col.handle
+    assign sp1 = line_col.metafields.custom.breadcrumb_parent.value | strip
+    if sp1 == blank and brand_col.title != blank
+      assign sp1 = brand_col.handle
+    endif
+  endif
+  if line_parent != blank
+    assign sib2_current = line_parent.handle
+    assign sp2 = line_parent.metafields.custom.breadcrumb_parent.value | strip
+    if sp2 == blank and brand_col.title != blank
+      assign sp2 = brand_col.handle
+    endif
+  endif
+  if line_grand != blank
+    assign sib3_current = line_grand.handle
+    assign sp3 = line_grand.metafields.custom.breadcrumb_parent.value | strip
+    if sp3 == blank and brand_col.title != blank
+      assign sp3 = brand_col.handle
+    endif
+  endif
+  assign brand_current = brand_col.handle
+  if mode == 'collection' and sib_kind == 'brand'
+    assign brand_current = cur_col.handle
   endif
 
   assign sep_glyph = '/'
@@ -426,58 +570,55 @@
   endcase
 -%}
 
-{%- capture sibling_items -%}
-  {%- if show_siblings -%}
-    {%- if sib_kind == 'brand' -%}
-      {%- for bh in brand_handles -%}
-        {%- assign b = collections[bh] -%}
-        {%- if b.title == blank -%}{%- continue -%}{%- endif -%}
-        <li{% if b.handle == cur_col.handle %} class="is-current"{% endif %}>
-          <a href="{{ b.url }}"{% if b.handle == cur_col.handle %} aria-current="page"{% endif %}>
-            {%- if b.image -%}<img src="{{ b.image | image_url: width: 80 }}" alt="" width="40" height="40" loading="lazy">{%- else -%}<span class="ccbc__ph"></span>{%- endif -%}
-            <span class="ccbc__sib-t">{{ b.title | escape }}</span>
-            <span class="ccbc__sib-n">{{ b.all_products_count }}</span>
+{%- assign sib1 = '' -%}
+{%- assign sib2 = '' -%}
+{%- assign sib3 = '' -%}
+{%- assign brand_items = '' -%}
+{%- if show_siblings -%}
+  {%- for i in (0..2) -%}
+    {%- assign off = i | times: 50 -%}
+    {%- for c in collections offset: off limit: 50 -%}
+      {%- assign hkey = ',' | append: c.handle | append: ',' -%}
+      {%- if excluded contains hkey or c.all_products_count == 0 -%}{%- continue -%}{%- endif -%}
+      {%- assign par = c.metafields.custom.breadcrumb_parent.value | strip -%}
+      {%- if par == 'hidden' -%}{%- continue -%}{%- endif -%}
+      {%- if par == blank -%}
+        {%- comment -%} legacy: derive the parent from English title prefixes {%- endcomment -%}
+        {%- if brand_col.title != blank -%}
+          {%- assign pre = c.title | slice: 0, brand_title_sp.size -%}
+          {%- if pre == brand_title_sp -%}{%- assign par = brand_col.handle -%}{%- endif -%}
+        {%- endif -%}
+        {%- if par == blank and fn_prefix != blank -%}
+          {%- assign pre = c.title | slice: 0, fn_prefix_sp.size -%}
+          {%- if pre == fn_prefix_sp -%}{%- assign par = 'clichair' -%}{%- endif -%}
+        {%- endif -%}
+        {%- if par == blank and brand_handles contains c.handle -%}{%- assign par = 'root' -%}{%- endif -%}
+      {%- endif -%}
+      {%- if par == blank -%}{%- continue -%}{%- endif -%}
+      {%- assign lbl = c.title -%}
+      {%- if par != 'root' and brand_col.title != blank -%}{%- assign lbl = lbl | remove_first: brand_title_sp -%}{%- endif -%}
+      {%- if fn_prefix != blank -%}{%- assign lbl = lbl | remove_first: fn_prefix_sp | remove: ' Collection' -%}{%- endif -%}
+      {%- capture item -%}
+        <li{% if c.handle == sib1_current or c.handle == sib2_current or c.handle == sib3_current or c.handle == brand_current %} class="is-current"{% endif %}>
+          <a href="{{ c.url }}">
+            {%- if c.image -%}<img src="{{ c.image | image_url: width: 80 }}" alt="" width="40" height="40" loading="lazy">{%- else -%}<span class="ccbc__ph"></span>{%- endif -%}
+            <span class="ccbc__sib-t">{{ lbl | escape }}</span>
+            <span class="ccbc__sib-n">{{ c.all_products_count }}</span>
           </a>
         </li>
-      {%- endfor -%}
-    {%- elsif sib_prefix != blank -%}
-      {%- for i in (0..2) -%}
-        {%- assign off = i | times: 50 -%}
-        {%- for c in collections offset: off limit: 50 -%}
-          {%- assign hkey = ',' | append: c.handle | append: ',' -%}
-          {%- if excluded contains hkey or c.all_products_count == 0 -%}{%- continue -%}{%- endif -%}
-          {%- assign pre = c.title | slice: 0, sib_prefix.size -%}
-          {%- if pre != sib_prefix -%}{%- continue -%}{%- endif -%}
-          {%- assign lbl = c.title | remove_first: sib_prefix | remove: ' Collection' -%}
-          <li{% if c.handle == sib_current %} class="is-current"{% endif %}>
-            <a href="{{ c.url }}"{% if c.handle == sib_current %} aria-current="page"{% endif %}>
-              {%- if c.image -%}<img src="{{ c.image | image_url: width: 80 }}" alt="" width="40" height="40" loading="lazy">{%- else -%}<span class="ccbc__ph"></span>{%- endif -%}
-              <span class="ccbc__sib-t">{{ lbl | escape }}</span>
-              <span class="ccbc__sib-n">{{ c.all_products_count }}</span>
-            </a>
-          </li>
-        {%- endfor -%}
-      {%- endfor -%}
-    {%- endif -%}
-  {%- endif -%}
-{%- endcapture -%}
-{%- assign sibling_items = sibling_items | strip -%}
-
-{%- capture brand_items -%}
-  {%- if show_siblings and sib_kind != 'brand' and brand_col.title != blank -%}
-    {%- for bh in brand_handles -%}
-      {%- assign b = collections[bh] -%}
-      {%- if b.title == blank -%}{%- continue -%}{%- endif -%}
-      <li{% if b.handle == brand_col.handle %} class="is-current"{% endif %}>
-        <a href="{{ b.url }}"{% if b.handle == brand_col.handle %} aria-current="page"{% endif %}>
-          {%- if b.image -%}<img src="{{ b.image | image_url: width: 80 }}" alt="" width="40" height="40" loading="lazy">{%- else -%}<span class="ccbc__ph"></span>{%- endif -%}
-          <span class="ccbc__sib-t">{{ b.title | escape }}</span>
-          <span class="ccbc__sib-n">{{ b.all_products_count }}</span>
-        </a>
-      </li>
+      {%- endcapture -%}
+      {%- if par == 'root' -%}
+        {%- assign brand_items = brand_items | append: item -%}
+      {%- endif -%}
+      {%- if sp1 != blank and par == sp1 -%}{%- assign sib1 = sib1 | append: item -%}{%- endif -%}
+      {%- if sp2 != blank and par == sp2 -%}{%- assign sib2 = sib2 | append: item -%}{%- endif -%}
+      {%- if sp3 != blank and par == sp3 -%}{%- assign sib3 = sib3 | append: item -%}{%- endif -%}
     {%- endfor -%}
-  {%- endif -%}
-{%- endcapture -%}
+  {%- endfor -%}
+{%- endif -%}
+{%- assign sib1 = sib1 | strip -%}
+{%- assign sib2 = sib2 | strip -%}
+{%- assign sib3 = sib3 | strip -%}
 {%- assign brand_items = brand_items | strip -%}
 
 {%- if crumb_count > 0 or request.design_mode -%}
@@ -619,6 +760,14 @@
         {%- assign i = forloop.index0 -%}
         {%- assign kind = kinds[i] -%}
         {%- assign url = urls[i] -%}
+        {%- assign sibid = sibs[i] -%}
+        {%- case sibid -%}
+          {%- when 'brand' -%}{%- assign items = brand_items -%}
+          {%- when '1' -%}{%- assign items = sib1 -%}
+          {%- when '2' -%}{%- assign items = sib2 -%}
+          {%- when '3' -%}{%- assign items = sib3 -%}
+          {%- else -%}{%- assign items = '' -%}
+        {%- endcase -%}
         {%- assign pop_id = 'ccbc-pop-' | append: bid | append: '-' | append: i -%}
         {%- if kind == 'current' -%}
           <li class="ccbc__item ccbc__item--current" aria-current="page">
@@ -636,18 +785,17 @@
                 <div class="ccbc__grid" data-ccbc-grid></div>
                 <div class="ccbc__state" data-ccbc-state>{{ t_loading }}&hellip;</div>
               </div>
-            {%- elsif mode == 'collection' and sibling_items != blank -%}
+            {%- elsif mode == 'collection' and items != blank -%}
               <button type="button" class="ccbc__btn" aria-expanded="false" aria-controls="{{ pop_id }}" aria-label="{{ t_explore }}">
                 <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3 6 5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
               </button>
               <div class="ccbc__pop" id="{{ pop_id }}" hidden>
                 <div class="ccbc__pop-h"><span>{{ t_explore }}</span></div>
-                <ul class="ccbc__sibs">{{ sibling_items }}</ul>
+                <ul class="ccbc__sibs">{{ items }}</ul>
               </div>
             {%- endif -%}
           </li>
         {%- else -%}
-          {%- if kind == 'brand' -%}{%- assign items = brand_items -%}{%- else -%}{%- assign items = sibling_items -%}{%- endif -%}
           <li class="ccbc__item{% if i == parent_index %} ccbc__item--parent{% endif %}">
             <span class="ccbc__sep ccbc__sep-lead" aria-hidden="true">{{ sep_glyph }}</span>
             <a class="ccbc__link" href="{{ url }}">{{ lbl | escape }}</a>
