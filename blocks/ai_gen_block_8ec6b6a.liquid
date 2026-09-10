@@ -1,0 +1,989 @@
+{% doc %}
+  @description cliCHair smart breadcrumb (Horizon theme block).
+  Canonical path derived from the product vendor and its collections
+  (brand > line > product), context crumb for the collection the visitor
+  came from, function chip (what the product is for), sibling popovers on
+  every crumb, lazy shade switcher for colour products, compact mobile
+  layout, optional sticky bar and BreadcrumbList JSON-LD.
+  Source of truth: github.com/fralati/main -> blocks/ai_gen_block_8ec6b6a.liquid
+{% enddoc %}
+
+{%- liquid
+  assign bid = block.id | replace: '_', '' | downcase
+  assign s = block.settings
+  assign lang = request.locale.iso_code | slice: 0, 2
+  assign mode = request.page_type
+
+  # ---------- i18n ----------
+  case lang
+    when 'it'
+      assign t_home = 'Home'
+      assign t_nav = 'Percorso di navigazione'
+      assign t_back = 'Torna a'
+      assign t_explore = 'Esplora'
+      assign t_shades = 'Altre tonalit&agrave;'
+      assign t_line = 'Altri prodotti della linea'
+      assign t_all = 'Vedi tutti'
+      assign t_path = 'Mostra il percorso completo'
+      assign t_loading = 'Caricamento'
+      assign t_search = 'Ricerca'
+      assign t_cart = 'Carrello'
+      assign t_account = 'Account'
+      assign t_for = 'Per'
+    when 'de'
+      assign t_home = 'Home'
+      assign t_nav = 'Navigationspfad'
+      assign t_back = 'Zur&uuml;ck zu'
+      assign t_explore = 'Entdecken'
+      assign t_shades = 'Weitere Nuancen'
+      assign t_line = 'Weitere Produkte der Linie'
+      assign t_all = 'Alle anzeigen'
+      assign t_path = 'Vollst&auml;ndigen Pfad anzeigen'
+      assign t_loading = 'Wird geladen'
+      assign t_search = 'Suche'
+      assign t_cart = 'Warenkorb'
+      assign t_account = 'Konto'
+      assign t_for = 'F&uuml;r'
+    when 'fr'
+      assign t_home = 'Accueil'
+      assign t_nav = "Fil d'Ariane"
+      assign t_back = 'Retour &agrave;'
+      assign t_explore = 'Explorer'
+      assign t_shades = 'Autres nuances'
+      assign t_line = 'Autres produits de la ligne'
+      assign t_all = 'Voir tout'
+      assign t_path = 'Afficher le chemin complet'
+      assign t_loading = 'Chargement'
+      assign t_search = 'Recherche'
+      assign t_cart = 'Panier'
+      assign t_account = 'Compte'
+      assign t_for = 'Pour'
+    else
+      assign t_home = 'Home'
+      assign t_nav = 'Breadcrumb'
+      assign t_back = 'Back to'
+      assign t_explore = 'Explore'
+      assign t_shades = 'More shades'
+      assign t_line = 'More from this line'
+      assign t_all = 'View all'
+      assign t_path = 'Show full path'
+      assign t_loading = 'Loading'
+      assign t_search = 'Search'
+      assign t_cart = 'Cart'
+      assign t_account = 'Account'
+      assign t_for = 'For'
+  endcase
+  if s.home_label != blank and s.home_label != 'Home'
+    assign t_home = s.home_label
+  endif
+
+  # ---------- configuration ----------
+  assign excluded = s.excluded_handles | downcase | replace: ' ', '' | prepend: ',' | append: ','
+  assign brand_handles = s.brand_handles | downcase | replace: ' ', '' | split: ','
+  assign fn_prefix = s.function_prefix | strip
+  assign fn_prefix_sp = fn_prefix | append: ' '
+  assign sep = '|||'
+
+  # ---------- resolve resources ----------
+  assign p = closest.product
+  if p == blank and product != blank
+    assign p = product
+  endif
+  assign cur_col = closest.collection
+  if cur_col == blank and collection != blank
+    assign cur_col = collection
+  endif
+
+  assign brand_col = blank
+  assign line_col = blank
+  assign line_parent = blank
+  assign fn_col = blank
+  assign fallback_col = blank
+  assign ctx_col = blank
+  assign sib_prefix = ''
+  assign sib_kind = ''
+  assign is_color = false
+  assign current_label = ''
+  assign current_thumb = ''
+
+  # crumbs are stored as parallel "arrays" (strings split by sep)
+  assign c_labels = ''
+  assign c_urls = ''
+  assign c_kinds = ''
+  assign product_handles = ''
+
+  # ================= PRODUCT =================
+  if mode == 'product' and p != blank
+    assign vendor_handle = p.vendor | handleize
+    if vendor_handle != blank
+      assign brand_col = collections[vendor_handle]
+    endif
+    if brand_col.title == blank
+      assign vt = p.vendor | downcase
+      for c in p.collections
+        assign ct = c.title | downcase
+        if ct == vt
+          assign brand_col = c
+          break
+        endif
+      endfor
+    endif
+    assign brand_title_sp = brand_col.title | append: ' '
+
+    assign line_min = 999999
+    assign fn_min = 999999
+    assign fb_min = 999999
+    for c in p.collections
+      assign product_handles = product_handles | append: c.handle | append: ','
+      assign hkey = ',' | append: c.handle | append: ','
+      if excluded contains hkey
+        continue
+      endif
+      assign n = c.all_products_count
+      assign is_brand_child = false
+      if brand_col.title != blank and c.handle != brand_col.handle
+        assign pre = c.title | slice: 0, brand_title_sp.size
+        if pre == brand_title_sp
+          assign is_brand_child = true
+        endif
+      endif
+      assign is_fn = false
+      if fn_prefix != blank
+        assign pre = c.title | slice: 0, fn_prefix_sp.size
+        if pre == fn_prefix_sp
+          assign is_fn = true
+        endif
+      endif
+      if is_brand_child
+        if n < line_min
+          assign line_col = c
+          assign line_min = n
+        endif
+      elsif is_fn
+        if n < fn_min
+          assign fn_col = c
+          assign fn_min = n
+        endif
+      elsif c.handle != brand_col.handle and n < fb_min
+        assign fallback_col = c
+        assign fb_min = n
+      endif
+    endfor
+
+    # intermediate line (e.g. Edelstein > Xflex > Xflex Gel)
+    if line_col != blank
+      assign line_rest = line_col.title | remove_first: brand_title_sp
+      assign line_first = line_rest | split: ' ' | first
+      assign lp_max = 0
+      for c in p.collections
+        assign hkey = ',' | append: c.handle | append: ','
+        if excluded contains hkey or c.handle == line_col.handle or c.handle == brand_col.handle
+          continue
+        endif
+        assign pre = c.title | slice: 0, brand_title_sp.size
+        if pre != brand_title_sp
+          continue
+        endif
+        assign rest = c.title | remove_first: brand_title_sp
+        assign rf = rest | split: ' ' | first
+        if rf == line_first and c.all_products_count > lp_max
+          assign line_parent = c
+          assign lp_max = c.all_products_count
+        endif
+      endfor
+    endif
+
+    if brand_col.title != blank
+      assign sib_prefix = brand_title_sp
+      assign sib_kind = 'line'
+    endif
+
+    # context: product opened from a collection URL (/collections/x/products/y)
+    if collection != blank and s.enable_context
+      assign ctx_col = collection
+    endif
+
+    # crumbs
+    if brand_col.title != blank
+      assign c_labels = c_labels | append: brand_col.title | append: sep
+      assign c_urls = c_urls | append: brand_col.url | append: sep
+      assign c_kinds = c_kinds | append: 'brand' | append: sep
+    endif
+    if line_parent != blank
+      assign lbl = line_parent.title | remove_first: brand_title_sp
+      assign c_labels = c_labels | append: lbl | append: sep
+      assign c_urls = c_urls | append: line_parent.url | append: sep
+      assign c_kinds = c_kinds | append: 'line' | append: sep
+    endif
+    if line_col != blank
+      assign lbl = line_col.title | remove_first: brand_title_sp
+      assign c_labels = c_labels | append: lbl | append: sep
+      assign c_urls = c_urls | append: line_col.url | append: sep
+      assign c_kinds = c_kinds | append: 'line' | append: sep
+    elsif brand_col.title == blank
+      if fallback_col != blank
+        assign lbl = fallback_col.title | remove_first: fn_prefix_sp | remove: ' Collection'
+        assign c_labels = c_labels | append: lbl | append: sep
+        assign c_urls = c_urls | append: fallback_col.url | append: sep
+        assign c_kinds = c_kinds | append: 'line' | append: sep
+        assign line_col = fallback_col
+      elsif fn_col != blank
+        assign lbl = fn_col.title | remove_first: fn_prefix_sp | remove: ' Collection'
+        assign c_labels = c_labels | append: lbl | append: sep
+        assign c_urls = c_urls | append: fn_col.url | append: sep
+        assign c_kinds = c_kinds | append: 'line' | append: sep
+        assign line_col = fn_col
+        assign fn_col = blank
+      endif
+    endif
+
+    # current label: for colour shades keep only "7.44 Copper" (drop the line name)
+    assign current_label = p.title
+    if p.type == 'Colors'
+      assign is_color = true
+      assign words = p.title | split: ' '
+      assign started = false
+      assign short = ''
+      for w in words
+        if started == false and w contains '.'
+          assign started = true
+        endif
+        if started
+          assign short = short | append: w | append: ' '
+        endif
+      endfor
+      assign short = short | strip
+      if short != blank and short.size < p.title.size
+        assign current_label = short
+      endif
+      if p.featured_image != blank
+        assign current_thumb = p.featured_image | image_url: width: 64
+      endif
+    endif
+    assign c_labels = c_labels | append: current_label | append: sep
+    assign c_urls = c_urls | append: p.url | append: sep
+    assign c_kinds = c_kinds | append: 'current' | append: sep
+
+  # ================= COLLECTION =================
+  elsif mode == 'collection' and cur_col != blank
+    assign cur_title_sp = cur_col.title | append: ' '
+    for bh in brand_handles
+      assign b = collections[bh]
+      if b.title == blank
+        continue
+      endif
+      if cur_col.handle == bh
+        assign sib_prefix = ''
+        assign sib_kind = 'brand'
+        break
+      endif
+      assign bsp = b.title | append: ' '
+      assign pre = cur_col.title | slice: 0, bsp.size
+      if pre == bsp
+        assign brand_col = b
+        assign brand_title_sp = bsp
+        assign sib_prefix = bsp
+        assign sib_kind = 'line'
+        break
+      endif
+    endfor
+    if brand_col == blank and sib_kind == '' and fn_prefix != blank
+      assign pre = cur_col.title | slice: 0, fn_prefix_sp.size
+      if pre == fn_prefix_sp
+        assign sib_prefix = fn_prefix_sp
+        assign sib_kind = 'fn'
+      endif
+    endif
+
+    # intermediate parent for the current collection (longest prefix among brand lines)
+    if brand_col != blank
+      assign lp_len = 0
+      for i in (0..2)
+        assign off = i | times: 50
+        for c in collections offset: off limit: 50
+          if c.handle == cur_col.handle or c.handle == brand_col.handle
+            continue
+          endif
+          assign hkey = ',' | append: c.handle | append: ','
+          if excluded contains hkey
+            continue
+          endif
+          assign csp = c.title | append: ' '
+          if csp.size >= cur_title_sp.size
+            continue
+          endif
+          assign pre = cur_title_sp | slice: 0, csp.size
+          if pre == csp and csp.size > lp_len
+            assign line_parent = c
+            assign lp_len = csp.size
+          endif
+        endfor
+      endfor
+    endif
+
+    if brand_col != blank
+      assign c_labels = c_labels | append: brand_col.title | append: sep
+      assign c_urls = c_urls | append: brand_col.url | append: sep
+      assign c_kinds = c_kinds | append: 'brand' | append: sep
+    endif
+    if line_parent != blank
+      assign lbl = line_parent.title | remove_first: brand_title_sp
+      assign c_labels = c_labels | append: lbl | append: sep
+      assign c_urls = c_urls | append: line_parent.url | append: sep
+      assign c_kinds = c_kinds | append: 'line' | append: sep
+    endif
+    assign current_label = cur_col.title
+    if brand_col != blank
+      assign current_label = current_label | remove_first: brand_title_sp
+    elsif sib_kind == 'fn'
+      assign current_label = current_label | remove_first: fn_prefix_sp | remove: ' Collection'
+    endif
+    assign c_labels = c_labels | append: current_label | append: sep
+    assign c_urls = c_urls | append: cur_col.url | append: sep
+    assign c_kinds = c_kinds | append: 'current' | append: sep
+
+  # ================= OTHER PAGES =================
+  elsif mode == 'page' and page != blank
+    assign c_labels = c_labels | append: page.title | append: sep
+    assign c_urls = c_urls | append: page.url | append: sep
+    assign c_kinds = c_kinds | append: 'current' | append: sep
+  elsif mode == 'article' and article != blank
+    assign c_labels = c_labels | append: blog.title | append: sep
+    assign c_urls = c_urls | append: blog.url | append: sep
+    assign c_kinds = c_kinds | append: 'page' | append: sep
+    assign c_labels = c_labels | append: article.title | append: sep
+    assign c_urls = c_urls | append: article.url | append: sep
+    assign c_kinds = c_kinds | append: 'current' | append: sep
+  elsif mode == 'blog' and blog != blank
+    assign c_labels = c_labels | append: blog.title | append: sep
+    assign c_urls = c_urls | append: blog.url | append: sep
+    assign c_kinds = c_kinds | append: 'current' | append: sep
+  elsif mode == 'search'
+    assign c_labels = c_labels | append: t_search | append: sep
+    assign c_urls = c_urls | append: routes.search_url | append: sep
+    assign c_kinds = c_kinds | append: 'current' | append: sep
+  elsif mode == 'cart'
+    assign c_labels = c_labels | append: t_cart | append: sep
+    assign c_urls = c_urls | append: routes.cart_url | append: sep
+    assign c_kinds = c_kinds | append: 'current' | append: sep
+  elsif mode contains 'customers'
+    assign c_labels = c_labels | append: t_account | append: sep
+    assign c_urls = c_urls | append: routes.account_url | append: sep
+    assign c_kinds = c_kinds | append: 'current' | append: sep
+  elsif mode != 'index' and page_title != blank
+    assign c_labels = c_labels | append: page_title | append: sep
+    assign c_urls = c_urls | append: request.path | append: sep
+    assign c_kinds = c_kinds | append: 'current' | append: sep
+  endif
+
+  assign labels = c_labels | split: sep
+  assign urls = c_urls | split: sep
+  assign kinds = c_kinds | split: sep
+  assign crumb_count = labels.size
+
+  # canonical handles (used by JS to decide whether a context crumb is redundant)
+  assign canon_handles = ''
+  if brand_col != blank and brand_col.title != blank
+    assign canon_handles = canon_handles | append: brand_col.handle | append: ','
+  endif
+  if line_parent != blank
+    assign canon_handles = canon_handles | append: line_parent.handle | append: ','
+  endif
+  if line_col != blank
+    assign canon_handles = canon_handles | append: line_col.handle | append: ','
+  endif
+  if fn_col != blank
+    assign canon_handles = canon_handles | append: fn_col.handle | append: ','
+  endif
+  if ctx_col != blank
+    assign ckey = ctx_col.handle | append: ','
+    if canon_handles contains ckey
+      assign ctx_col = blank
+    endif
+  endif
+
+  # ---------- sibling list (server rendered, shared by brand/line crumbs) ----------
+  assign show_siblings = s.show_siblings
+  assign sib_current = ''
+  if mode == 'collection'
+    assign sib_current = cur_col.handle
+  elsif line_col != blank
+    assign sib_current = line_col.handle
+  endif
+
+  assign sep_glyph = '/'
+  case s.separator_style
+    when 'dot'
+      assign sep_glyph = '&middot;'
+    when 'chevron'
+      assign sep_glyph = '&rsaquo;'
+    when 'arrow'
+      assign sep_glyph = '&rarr;'
+  endcase
+-%}
+
+{%- capture sibling_items -%}
+  {%- if show_siblings -%}
+    {%- if sib_kind == 'brand' -%}
+      {%- for bh in brand_handles -%}
+        {%- assign b = collections[bh] -%}
+        {%- if b.title == blank -%}{%- continue -%}{%- endif -%}
+        <li{% if b.handle == cur_col.handle %} class="is-current"{% endif %}>
+          <a href="{{ b.url }}"{% if b.handle == cur_col.handle %} aria-current="page"{% endif %}>
+            {%- if b.image -%}<img src="{{ b.image | image_url: width: 80 }}" alt="" width="40" height="40" loading="lazy">{%- else -%}<span class="ccbc__ph"></span>{%- endif -%}
+            <span class="ccbc__sib-t">{{ b.title | escape }}</span>
+            <span class="ccbc__sib-n">{{ b.all_products_count }}</span>
+          </a>
+        </li>
+      {%- endfor -%}
+    {%- elsif sib_prefix != blank -%}
+      {%- for i in (0..2) -%}
+        {%- assign off = i | times: 50 -%}
+        {%- for c in collections offset: off limit: 50 -%}
+          {%- assign hkey = ',' | append: c.handle | append: ',' -%}
+          {%- if excluded contains hkey or c.all_products_count == 0 -%}{%- continue -%}{%- endif -%}
+          {%- assign pre = c.title | slice: 0, sib_prefix.size -%}
+          {%- if pre != sib_prefix -%}{%- continue -%}{%- endif -%}
+          {%- assign lbl = c.title | remove_first: sib_prefix | remove: ' Collection' -%}
+          <li{% if c.handle == sib_current %} class="is-current"{% endif %}>
+            <a href="{{ c.url }}"{% if c.handle == sib_current %} aria-current="page"{% endif %}>
+              {%- if c.image -%}<img src="{{ c.image | image_url: width: 80 }}" alt="" width="40" height="40" loading="lazy">{%- else -%}<span class="ccbc__ph"></span>{%- endif -%}
+              <span class="ccbc__sib-t">{{ lbl | escape }}</span>
+              <span class="ccbc__sib-n">{{ c.all_products_count }}</span>
+            </a>
+          </li>
+        {%- endfor -%}
+      {%- endfor -%}
+    {%- endif -%}
+  {%- endif -%}
+{%- endcapture -%}
+{%- assign sibling_items = sibling_items | strip -%}
+
+{%- capture brand_items -%}
+  {%- if show_siblings and sib_kind != 'brand' and brand_col.title != blank -%}
+    {%- for bh in brand_handles -%}
+      {%- assign b = collections[bh] -%}
+      {%- if b.title == blank -%}{%- continue -%}{%- endif -%}
+      <li{% if b.handle == brand_col.handle %} class="is-current"{% endif %}>
+        <a href="{{ b.url }}"{% if b.handle == brand_col.handle %} aria-current="page"{% endif %}>
+          {%- if b.image -%}<img src="{{ b.image | image_url: width: 80 }}" alt="" width="40" height="40" loading="lazy">{%- else -%}<span class="ccbc__ph"></span>{%- endif -%}
+          <span class="ccbc__sib-t">{{ b.title | escape }}</span>
+          <span class="ccbc__sib-n">{{ b.all_products_count }}</span>
+        </a>
+      </li>
+    {%- endfor -%}
+  {%- endif -%}
+{%- endcapture -%}
+{%- assign brand_items = brand_items | strip -%}
+
+{%- if crumb_count > 0 or request.design_mode -%}
+
+{% style %}
+  .ccbc-{{ bid }} {
+    --ccbc-size: {{ s.text_size | default: 13 }}px;
+    {%- if s.text_color != blank and s.text_color.alpha != 0 %}
+    --ccbc-fg: {{ s.text_color }};
+    {%- else %}
+    --ccbc-fg: var(--color-foreground, currentColor);
+    {%- endif %}
+    --ccbc-muted: color-mix(in srgb, var(--ccbc-fg) 62%, transparent);
+    --ccbc-faint: color-mix(in srgb, var(--ccbc-fg) 14%, transparent);
+    --ccbc-bg: var(--color-background, #fff);
+    --ccbc-radius: 12px;
+    padding-block: {{ s.padding_top | default: 0 }}px {{ s.padding_bottom | default: 0 }}px;
+  }
+{% endstyle %}
+
+<style>
+  .ccbc { display:block; width:100%; max-width:100%; color:var(--ccbc-fg); font-family:var(--font-body--family, inherit); font-size:var(--ccbc-size); line-height:1.4; letter-spacing:.01em; position:relative; }
+  .ccbc__row { display:flex; align-items:center; flex-wrap:wrap; gap:6px 14px; min-width:0; }
+  .ccbc__list { display:flex; align-items:center; flex-wrap:wrap; gap:4px 0; list-style:none; margin:0; padding:0; min-width:0; }
+  .ccbc__item { display:inline-flex; align-items:center; position:relative; min-width:0; }
+  .ccbc__sep { display:inline-block; margin:0 .55em; color:var(--ccbc-muted); opacity:.55; user-select:none; font-weight:300; }
+  .ccbc__link { color:var(--ccbc-muted); text-decoration:none; white-space:nowrap; transition:color .18s ease; background-image:linear-gradient(currentColor,currentColor); background-size:0 1px; background-repeat:no-repeat; background-position:0 100%; transition:background-size .22s ease, color .18s ease; }
+  .ccbc__link:hover, .ccbc__item.is-open > .ccbc__link { color:var(--ccbc-fg); background-size:100% 1px; }
+  .ccbc__link:focus-visible { outline:2px solid currentColor; outline-offset:3px; border-radius:2px; }
+  .ccbc__current { color:var(--ccbc-fg); font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:min(60vw, 34ch); display:inline-flex; align-items:center; gap:.5em; }
+  .ccbc__thumb { width:1.5em; height:1.5em; border-radius:50%; object-fit:cover; box-shadow:0 0 0 1px var(--ccbc-faint); flex:none; }
+  .ccbc__ctx { display:inline-flex; align-items:center; gap:.4em; padding:.15em .7em .15em .55em; border:1px solid var(--ccbc-faint); border-radius:999px; color:var(--ccbc-fg); text-decoration:none; font-size:.92em; background:transparent; transition:background .18s ease, border-color .18s ease; }
+  .ccbc__ctx:hover { background:var(--ccbc-faint); border-color:transparent; }
+  .ccbc__ctx svg { width:.9em; height:.9em; }
+  .ccbc__ctx-lbl { color:var(--ccbc-muted); }
+  .ccbc__chip { display:inline-flex; align-items:center; gap:.45em; margin-inline-start:auto; padding:.28em .8em; border:1px solid var(--ccbc-faint); border-radius:999px; color:var(--ccbc-muted); text-decoration:none; font-size:.78em; letter-spacing:.09em; text-transform:uppercase; white-space:nowrap; transition:color .18s ease, border-color .18s ease, background .18s ease; }
+  .ccbc__chip:hover { color:var(--ccbc-fg); background:var(--ccbc-faint); border-color:transparent; }
+  .ccbc__chip-k { opacity:.6; letter-spacing:.04em; text-transform:none; }
+  .ccbc__btn { appearance:none; background:none; border:0; padding:0 .15em; margin-inline-start:.15em; color:var(--ccbc-muted); cursor:pointer; display:inline-flex; align-items:center; border-radius:4px; opacity:.7; transition:opacity .18s ease, transform .22s ease, color .18s ease; }
+  .ccbc__btn svg { width:.85em; height:.85em; display:block; }
+  .ccbc__btn:hover, .ccbc__item.is-open > .ccbc__btn { opacity:1; color:var(--ccbc-fg); }
+  .ccbc__item.is-open > .ccbc__btn { transform:rotate(180deg); }
+  .ccbc__btn:focus-visible { outline:2px solid currentColor; outline-offset:2px; }
+  .ccbc__pop { position:absolute; top:calc(100% + 10px); left:-8px; z-index:60; min-width:240px; max-width:min(92vw, 380px); background:var(--ccbc-bg); color:var(--ccbc-fg); border:1px solid var(--ccbc-faint); border-radius:var(--ccbc-radius); box-shadow:0 18px 44px -12px rgb(var(--color-shadow-rgb, 0 0 0) / .22), 0 2px 6px rgb(var(--color-shadow-rgb, 0 0 0) / .06); padding:8px; opacity:0; transform:translateY(6px); pointer-events:none; transition:opacity .16s ease, transform .18s ease; }
+  .ccbc__item.is-open > .ccbc__pop { opacity:1; transform:none; pointer-events:auto; }
+  .ccbc__pop[hidden] { display:none; }
+  .ccbc__pop.is-right { left:auto; right:-8px; }
+  .ccbc__pop-h { display:flex; align-items:baseline; justify-content:space-between; gap:12px; padding:6px 10px 8px; font-size:.78em; letter-spacing:.09em; text-transform:uppercase; color:var(--ccbc-muted); }
+  .ccbc__pop-h a { color:var(--ccbc-fg); text-decoration:none; letter-spacing:.02em; text-transform:none; font-size:1.05em; white-space:nowrap; }
+  .ccbc__pop-h a:hover { text-decoration:underline; text-underline-offset:3px; }
+  .ccbc__sibs { list-style:none; margin:0; padding:0; max-height:min(60vh, 380px); overflow:auto; overscroll-behavior:contain; }
+  .ccbc__sibs li a { display:flex; align-items:center; gap:10px; padding:6px 10px; border-radius:8px; color:var(--ccbc-fg); text-decoration:none; transition:background .15s ease; }
+  .ccbc__sibs li a:hover { background:var(--ccbc-faint); }
+  .ccbc__sibs li.is-current a { background:var(--ccbc-faint); font-weight:500; }
+  .ccbc__sibs img, .ccbc__ph { width:32px; height:32px; border-radius:8px; object-fit:cover; flex:none; background:var(--ccbc-faint); }
+  .ccbc__sib-t { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .ccbc__sib-n { color:var(--ccbc-muted); font-size:.82em; font-variant-numeric:tabular-nums; }
+  .ccbc__grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(64px, 1fr)); gap:6px; padding:4px; max-height:min(60vh, 380px); overflow:auto; overscroll-behavior:contain; }
+  .ccbc__grid a { display:flex; flex-direction:column; align-items:center; gap:4px; padding:6px 2px; border-radius:8px; color:var(--ccbc-fg); text-decoration:none; font-size:.8em; text-align:center; transition:background .15s ease; }
+  .ccbc__grid a:hover { background:var(--ccbc-faint); }
+  .ccbc__grid a.is-current { background:var(--ccbc-faint); font-weight:500; }
+  .ccbc__grid img { width:44px; height:44px; border-radius:50%; object-fit:cover; box-shadow:0 0 0 1px var(--ccbc-faint); }
+  .ccbc__grid span { max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .ccbc__pop--wide { min-width:min(92vw, 420px); }
+  .ccbc__state { padding:14px 10px; color:var(--ccbc-muted); font-size:.9em; }
+  .ccbc__more { display:none; appearance:none; background:none; border:1px solid var(--ccbc-faint); border-radius:999px; color:var(--ccbc-muted); padding:0 .55em; height:1.7em; line-height:1; cursor:pointer; font:inherit; font-size:.95em; letter-spacing:.15em; margin-inline-end:.4em; }
+  /* mobile: collapsed to "< parent  / current" */
+  @media screen and (max-width: 749px) {
+    .ccbc__row { gap:6px 10px; }
+    .ccbc[data-collapsed] .ccbc__item:not(.ccbc__item--parent):not(.ccbc__item--current):not(.ccbc__item--ctx) { display:none; }
+    .ccbc[data-collapsed] .ccbc__more { display:inline-flex; align-items:center; }
+    .ccbc[data-collapsed] .ccbc__item--parent .ccbc__sep-lead { display:none; }
+    .ccbc[data-collapsed] .ccbc__item--parent .ccbc__link::before { content:"\2190"; margin-inline-end:.45em; }
+    .ccbc__current { max-width:min(52vw, 26ch); }
+    .ccbc__chip { margin-inline-start:0; }
+    .ccbc__pop { position:fixed; left:12px; right:12px; top:auto; bottom:12px; max-width:none; min-width:0; transform:translateY(10px); }
+  }
+  /* sticky bar */
+  .ccbc-sticky { --ccbc-fg:var(--color-foreground, #111); --ccbc-muted:color-mix(in srgb, var(--ccbc-fg) 62%, transparent); --ccbc-faint:color-mix(in srgb, var(--ccbc-fg) 14%, transparent); position:fixed; left:0; right:0; top:var(--ccbc-sticky-top, 0); z-index:45; background:color-mix(in srgb, var(--color-background, #fff) 88%, transparent); -webkit-backdrop-filter:saturate(1.4) blur(10px); backdrop-filter:saturate(1.4) blur(10px); border-bottom:1px solid var(--ccbc-faint); color:var(--ccbc-fg); font-family:var(--font-body--family, inherit); font-size:var(--ccbc-size, 13px); transform:translateY(-110%); opacity:0; transition:transform .26s cubic-bezier(.2,.7,.2,1), opacity .2s ease; }
+  .ccbc-sticky.is-on { transform:none; opacity:1; }
+  .ccbc-sticky__in { display:flex; align-items:center; gap:0; padding:8px max(16px, calc((100% - var(--normal-page-width, 120rem)) / 2 + 16px)); white-space:nowrap; overflow:hidden; }
+  .ccbc-sticky a { color:var(--ccbc-muted); text-decoration:none; }
+  .ccbc-sticky a:hover { color:var(--ccbc-fg); }
+  .ccbc-sticky .ccbc__sep { margin:0 .5em; }
+  .ccbc-sticky strong { font-weight:500; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+  @media (prefers-reduced-motion: reduce) { .ccbc *, .ccbc-sticky { transition:none !important; } }
+</style>
+
+{%- assign parent_index = crumb_count | minus: 2 -%}
+{%- if crumb_count == 1 -%}{%- assign parent_index = -1 -%}{%- endif -%}
+
+<nav
+  class="ccbc ccbc-{{ bid }}"
+  id="ccbc-{{ bid }}"
+  aria-label="{{ t_nav }}"
+  data-ccbc
+  data-collapsed
+  data-page="{{ mode }}"
+  data-context="{{ s.enable_context }}"
+  data-sticky="{{ s.enable_sticky }}"
+  data-handles="{{ product_handles }}"
+  data-canon="{{ canon_handles }}"
+  data-col-handle="{{ cur_col.handle }}"
+  data-col-title="{{ cur_col.title | escape }}"
+  data-col-url="{{ cur_col.url }}"
+  data-current="{{ p.handle }}"
+  {{ block.shopify_attributes }}
+>
+  <div class="ccbc__row">
+    <button type="button" class="ccbc__more" data-ccbc-expand aria-label="{{ t_path }}" aria-expanded="false">&middot;&middot;&middot;</button>
+    <ol class="ccbc__list">
+      {%- if ctx_col != blank -%}
+        <li class="ccbc__item ccbc__item--ctx">
+          <a class="ccbc__ctx" href="{{ ctx_col.url }}">
+            <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M10 3 5 8l5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span class="ccbc__ctx-lbl">{{ t_back }}</span> {{ ctx_col.title | remove_first: fn_prefix_sp | escape }}
+          </a>
+        </li>
+      {%- else -%}
+        <li class="ccbc__item ccbc__item--ctx" hidden data-ccbc-ctx>
+          <a class="ccbc__ctx" href="#">
+            <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M10 3 5 8l5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span class="ccbc__ctx-lbl">{{ t_back }}</span> <span data-ccbc-ctx-title></span>
+          </a>
+        </li>
+      {%- endif -%}
+
+      <li class="ccbc__item{% if parent_index == -1 and crumb_count > 0 %} ccbc__item--parent{% endif %}">
+        <a class="ccbc__link" href="{{ routes.root_url }}">{{ t_home }}</a>
+      </li>
+
+      {%- for lbl in labels -%}
+        {%- assign i = forloop.index0 -%}
+        {%- assign kind = kinds[i] -%}
+        {%- assign url = urls[i] -%}
+        {%- assign pop_id = 'ccbc-pop-' | append: bid | append: '-' | append: i -%}
+        {%- if kind == 'current' -%}
+          <li class="ccbc__item ccbc__item--current" aria-current="page">
+            <span class="ccbc__sep ccbc__sep-lead" aria-hidden="true">{{ sep_glyph }}</span>
+            <span class="ccbc__current">
+              {%- if current_thumb != blank -%}<img class="ccbc__thumb" src="{{ current_thumb }}" alt="" width="24" height="24">{%- endif -%}
+              {{ lbl | escape }}
+            </span>
+            {%- if mode == 'product' and s.show_product_siblings and line_col != blank -%}
+              <button type="button" class="ccbc__btn" aria-expanded="false" aria-controls="{{ pop_id }}" aria-label="{% if is_color %}{{ t_shades }}{% else %}{{ t_line }}{% endif %}">
+                <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3 6 5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+              <div class="ccbc__pop ccbc__pop--wide" id="{{ pop_id }}" hidden data-ccbc-lazy="{{ line_col.url }}" data-color="{{ is_color }}">
+                <div class="ccbc__pop-h"><span>{% if is_color %}{{ t_shades }}{% else %}{{ t_line }}{% endif %}</span><a href="{{ line_col.url }}">{{ t_all }} ({{ line_col.all_products_count }})</a></div>
+                <div class="ccbc__grid" data-ccbc-grid></div>
+                <div class="ccbc__state" data-ccbc-state>{{ t_loading }}&hellip;</div>
+              </div>
+            {%- elsif mode == 'collection' and sibling_items != blank -%}
+              <button type="button" class="ccbc__btn" aria-expanded="false" aria-controls="{{ pop_id }}" aria-label="{{ t_explore }}">
+                <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3 6 5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+              <div class="ccbc__pop" id="{{ pop_id }}" hidden>
+                <div class="ccbc__pop-h"><span>{{ t_explore }}</span></div>
+                <ul class="ccbc__sibs">{{ sibling_items }}</ul>
+              </div>
+            {%- endif -%}
+          </li>
+        {%- else -%}
+          {%- if kind == 'brand' -%}{%- assign items = brand_items -%}{%- else -%}{%- assign items = sibling_items -%}{%- endif -%}
+          <li class="ccbc__item{% if i == parent_index %} ccbc__item--parent{% endif %}">
+            <span class="ccbc__sep ccbc__sep-lead" aria-hidden="true">{{ sep_glyph }}</span>
+            <a class="ccbc__link" href="{{ url }}">{{ lbl | escape }}</a>
+            {%- if items != blank -%}
+              <button type="button" class="ccbc__btn" aria-expanded="false" aria-controls="{{ pop_id }}" aria-label="{{ t_explore }}: {{ lbl | escape }}">
+                <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3 6 5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+              <div class="ccbc__pop" id="{{ pop_id }}" hidden>
+                <div class="ccbc__pop-h"><span>{{ t_explore }}</span><a href="{{ url }}">{{ t_all }}</a></div>
+                <ul class="ccbc__sibs">{{ items }}</ul>
+              </div>
+            {%- endif -%}
+          </li>
+        {%- endif -%}
+      {%- endfor -%}
+    </ol>
+
+    {%- if s.show_function_chip and fn_col != blank -%}
+      <a class="ccbc__chip" href="{{ fn_col.url }}"><span class="ccbc__chip-k">{{ t_for }}</span> {{ fn_col.title | remove_first: fn_prefix_sp | remove: ' Collection' | escape }}</a>
+    {%- endif -%}
+  </div>
+</nav>
+
+{%- if crumb_count > 0 -%}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    { "@type": "ListItem", "position": 1, "name": {{ t_home | json }}, "item": {{ request.origin | append: routes.root_url | json }} }
+    {%- for lbl in labels -%}
+      {%- assign i = forloop.index0 -%}
+      , { "@type": "ListItem", "position": {{ i | plus: 2 }}, "name": {{ lbl | strip_html | json }}, "item": {{ request.origin | append: urls[i] | json }} }
+    {%- endfor %}
+  ]
+}
+</script>
+{%- endif -%}
+
+<script>
+(function () {
+  if (window.__ccbcInit) { window.__ccbcInit(); return; }
+  var KEY = 'ccbc:last';
+  var canHover = window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]; }); }
+
+  function readCtx() { try { return JSON.parse(sessionStorage.getItem(KEY) || 'null'); } catch (e) { return null; } }
+  function writeCtx(o) { try { sessionStorage.setItem(KEY, JSON.stringify(o)); } catch (e) {} }
+
+  function closeAll(except) {
+    document.querySelectorAll('[data-ccbc] .ccbc__item.is-open').forEach(function (li) {
+      if (li === except) return;
+      li.classList.remove('is-open');
+      var b = li.querySelector(':scope > .ccbc__btn'); if (b) b.setAttribute('aria-expanded', 'false');
+      var p = li.querySelector(':scope > .ccbc__pop'); if (p) setTimeout(function () { if (!li.classList.contains('is-open')) p.hidden = true; }, 200);
+    });
+  }
+
+  function open(li) {
+    var pop = li.querySelector(':scope > .ccbc__pop'); if (!pop) return;
+    closeAll(li);
+    pop.hidden = false;
+    pop.classList.remove('is-right');
+    var r = pop.getBoundingClientRect();
+    if (r.right > window.innerWidth - 8 && window.innerWidth >= 750) pop.classList.add('is-right');
+    requestAnimationFrame(function () { li.classList.add('is-open'); });
+    var b = li.querySelector(':scope > .ccbc__btn'); if (b) b.setAttribute('aria-expanded', 'true');
+    if (pop.hasAttribute('data-ccbc-lazy') && !pop.dataset.loaded) loadSiblings(pop, li.closest('[data-ccbc]'));
+  }
+
+  function commonPrefix(list) {
+    if (!list.length) return '';
+    var pre = list[0];
+    for (var i = 1; i < list.length && pre; i++) { while (list[i].indexOf(pre) !== 0) { pre = pre.slice(0, -1); } }
+    // cut back to a word boundary
+    var sp = pre.lastIndexOf(' ');
+    return sp > 0 ? pre.slice(0, sp + 1) : '';
+  }
+
+  function shortTitle(t, pre, isColor) {
+    var s = t;
+    if (isColor) { var m = t.match(/\d+(?:[.,]\d+)?[\s\S]*$/); if (m && m[0].length < t.length) s = m[0]; }
+    else if (pre && t.indexOf(pre) === 0 && t.length > pre.length + 2) s = t.slice(pre.length);
+    return s.trim();
+  }
+
+  function loadSiblings(pop, nav) {
+    pop.dataset.loaded = '1';
+    var base = pop.getAttribute('data-ccbc-lazy');
+    var isColor = pop.getAttribute('data-color') === 'true';
+    var grid = pop.querySelector('[data-ccbc-grid]');
+    var state = pop.querySelector('[data-ccbc-state]');
+    var current = nav.getAttribute('data-current');
+    base = base.replace(/\/$/, '');
+    var unlocalized = base.replace(/^\/[a-z]{2}(?:-[a-z]{2})?(?=\/)/i, '');
+    function get(b) { return fetch(b + '/products.json?limit=250', { headers: { 'Accept': 'application/json' } }).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); }); }
+    get(base)
+      .catch(function (err) { if (unlocalized !== base) return get(unlocalized); throw err; })
+      .then(function (d) {
+        var items = (d && d.products) || [];
+        if (!items.length) { state.textContent = '—'; return; }
+        var pre = isColor ? '' : commonPrefix(items.map(function (p) { return p.title; }));
+        var html = '';
+        items.forEach(function (p) {
+          var img = p.images && p.images[0] ? p.images[0].src : '';
+          if (img) img += (img.indexOf('?') > -1 ? '&' : '?') + 'width=96';
+          var href = base.replace(/\/$/, '') + '/products/' + p.handle;
+          html += '<a href="' + esc(href) + '"' + (p.handle === current ? ' class="is-current" aria-current="page"' : '') + ' title="' + esc(p.title) + '">' +
+            (img ? '<img src="' + esc(img) + '" alt="" loading="lazy" width="44" height="44">' : '<span class="ccbc__ph"></span>') +
+            '<span>' + esc(shortTitle(p.title, pre, isColor)) + '</span></a>';
+        });
+        grid.innerHTML = html;
+        state.hidden = true;
+        var cur = grid.querySelector('.is-current'); if (cur) cur.scrollIntoView({ block: 'center' });
+      })
+      .catch(function () { state.textContent = '—'; pop.dataset.loaded = ''; });
+  }
+
+  function setupContext(nav) {
+    var page = nav.getAttribute('data-page');
+    var enabled = nav.getAttribute('data-context') === 'true';
+    if (page === 'collection' && nav.getAttribute('data-col-handle')) {
+      writeCtx({ h: nav.getAttribute('data-col-handle'), t: nav.getAttribute('data-col-title'), u: nav.getAttribute('data-col-url') });
+      return;
+    }
+    if (page !== 'product' || !enabled) return;
+    var slot = nav.querySelector('[data-ccbc-ctx]'); if (!slot) return;
+    var ctx = readCtx(); if (!ctx || !ctx.h) return;
+    var handles = ',' + (nav.getAttribute('data-handles') || '') ;
+    var canon = ',' + (nav.getAttribute('data-canon') || '');
+    if (handles.indexOf(',' + ctx.h + ',') === -1) return;     // not a collection of this product
+    if (canon.indexOf(',' + ctx.h + ',') !== -1) return;       // already in the canonical path
+    slot.querySelector('a').setAttribute('href', ctx.u);
+    slot.querySelector('[data-ccbc-ctx-title]').textContent = ctx.t;
+    slot.hidden = false;
+  }
+
+  function setupSticky(nav) {
+    if (nav.getAttribute('data-sticky') !== 'true' || nav.dataset.stickyDone) return;
+    if (!('IntersectionObserver' in window)) return;
+    nav.dataset.stickyDone = '1';
+    document.querySelectorAll('.ccbc-sticky').forEach(function (b) { b.remove(); });
+    var bar = document.createElement('div');
+    bar.className = 'ccbc-sticky';
+    bar.setAttribute('aria-hidden', 'true');
+    var inner = document.createElement('div'); inner.className = 'ccbc-sticky__in';
+    var parts = [];
+    nav.querySelectorAll('.ccbc__list > li:not(.ccbc__item--ctx)').forEach(function (li) {
+      var a = li.querySelector(':scope > .ccbc__link');
+      var c = li.querySelector('.ccbc__current');
+      if (a) parts.push('<a href="' + esc(a.getAttribute('href')) + '">' + esc(a.textContent.trim()) + '</a>');
+      else if (c) parts.push('<strong>' + esc(c.textContent.trim()) + '</strong>');
+    });
+    var sep = nav.querySelector('.ccbc__sep'); var sepHtml = sep ? '<span class="ccbc__sep">' + sep.innerHTML + '</span>' : ' / ';
+    inner.innerHTML = parts.join(sepHtml);
+    bar.appendChild(inner);
+    document.body.appendChild(bar);
+    var header = document.getElementById('header-component');
+    var stickyMode = header ? header.getAttribute('sticky') : null;
+    bar.style.setProperty('--ccbc-sticky-top', stickyMode === 'always' ? 'var(--header-height, 0px)' : '0px');
+    bar.style.setProperty('--ccbc-size', getComputedStyle(nav).getPropertyValue('--ccbc-size') || '13px');
+    var io = new IntersectionObserver(function (entries) {
+      var e = entries[0];
+      var above = !e.isIntersecting && e.boundingClientRect.top < 0;
+      bar.classList.toggle('is-on', above);
+    }, { threshold: 0 });
+    io.observe(nav);
+  }
+
+  function initNav(nav) {
+    if (nav.dataset.ccbcReady) return;
+    nav.dataset.ccbcReady = '1';
+    setupContext(nav);
+
+    // mobile expand
+    var more = nav.querySelector('[data-ccbc-expand]');
+    if (more) more.addEventListener('click', function () { nav.removeAttribute('data-collapsed'); more.setAttribute('aria-expanded', 'true'); });
+
+    nav.querySelectorAll('.ccbc__item').forEach(function (li) {
+      var btn = li.querySelector(':scope > .ccbc__btn'); if (!btn) return;
+      btn.addEventListener('click', function (e) {
+        e.preventDefault(); e.stopPropagation();
+        li.classList.contains('is-open') ? closeAll() : open(li);
+      });
+      if (canHover) {
+        var t;
+        li.addEventListener('mouseenter', function () { clearTimeout(t); t = setTimeout(function () { open(li); }, 140); });
+        li.addEventListener('mouseleave', function () { clearTimeout(t); t = setTimeout(function () { if (li.classList.contains('is-open')) closeAll(); }, 260); });
+      }
+    });
+
+    setupSticky(nav);
+  }
+
+  if (!window.__ccbcGlobal) {
+    window.__ccbcGlobal = true;
+    document.addEventListener('click', function (e) { if (!e.target.closest('[data-ccbc] .ccbc__item.is-open')) closeAll(); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeAll(); });
+    document.addEventListener('shopify:section:load', function () { window.__ccbcInit(); });
+    document.addEventListener('shopify:block:select', function () { window.__ccbcInit(); });
+  }
+
+  window.__ccbcInit = function () { document.querySelectorAll('[data-ccbc]').forEach(initNav); };
+  window.__ccbcInit();
+})();
+</script>
+
+{%- endif -%}
+
+{% schema %}
+{
+  "name": "Breadcrumb cliCHair",
+  "tag": null,
+  "class": "breadcrumb-block",
+  "settings": [
+    {
+      "type": "paragraph",
+      "content": "Percorso: Home / Brand / Linea / Prodotto. Il brand viene dal fornitore del prodotto, la linea dalla collezione più specifica con lo stesso prefisso del brand."
+    },
+    {
+      "type": "header",
+      "content": "Funzioni"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_function_chip",
+      "label": "Mostra la chip \"Per\" (categoria funzionale)",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_siblings",
+      "label": "Popover con linee e brand correlati",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_product_siblings",
+      "label": "Popover tonalità / prodotti della stessa linea",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_context",
+      "label": "Ricorda la collezione di provenienza (\"Torna a\")",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_sticky",
+      "label": "Barra compatta fissa durante lo scroll",
+      "default": true
+    },
+    {
+      "type": "header",
+      "content": "Catalogo"
+    },
+    {
+      "type": "text",
+      "id": "brand_handles",
+      "label": "Handle delle collezioni brand",
+      "info": "Separati da virgola, in ordine di visualizzazione.",
+      "default": "code-zero,edelstein,nika"
+    },
+    {
+      "type": "text",
+      "id": "function_prefix",
+      "label": "Prefisso delle collezioni funzionali",
+      "info": "Le collezioni con questo prefisso nel titolo alimentano la chip \"Per\".",
+      "default": "cliCHair"
+    },
+    {
+      "type": "text",
+      "id": "excluded_handles",
+      "label": "Collezioni da ignorare (handle)",
+      "info": "Vetrine commerciali che non fanno parte della struttura.",
+      "default": "bfcm,deals-collection,outlet,trending-products,clichair-marketing,nika-marketing"
+    },
+    {
+      "type": "header",
+      "content": "Aspetto"
+    },
+    {
+      "type": "text",
+      "id": "home_label",
+      "label": "Etichetta home",
+      "info": "Lascia \"Home\" per la traduzione automatica.",
+      "default": "Home"
+    },
+    {
+      "type": "select",
+      "id": "separator_style",
+      "label": "Separatore",
+      "options": [
+        { "value": "slash", "label": "Barra  /" },
+        { "value": "dot", "label": "Punto  ·" },
+        { "value": "chevron", "label": "Freccia  ›" },
+        { "value": "arrow", "label": "Freccia lunga  →" }
+      ],
+      "default": "slash"
+    },
+    {
+      "type": "range",
+      "id": "text_size",
+      "label": "Dimensione testo",
+      "min": 10,
+      "max": 20,
+      "step": 1,
+      "unit": "px",
+      "default": 13
+    },
+    {
+      "type": "color",
+      "id": "text_color",
+      "label": "Colore testo",
+      "info": "Vuoto: usa il colore del testo della sezione.",
+      "alpha": true,
+      "default": "rgba(0,0,0,0)"
+    },
+    {
+      "type": "range",
+      "id": "padding_top",
+      "label": "Spazio sopra",
+      "min": 0,
+      "max": 48,
+      "step": 2,
+      "unit": "px",
+      "default": 0
+    },
+    {
+      "type": "range",
+      "id": "padding_bottom",
+      "label": "Spazio sotto",
+      "min": 0,
+      "max": 48,
+      "step": 2,
+      "unit": "px",
+      "default": 0
+    }
+  ],
+  "presets": [
+    {
+      "name": "Breadcrumb cliCHair",
+      "category": "Navigazione"
+    }
+  ]
+}
+{% endschema %}
