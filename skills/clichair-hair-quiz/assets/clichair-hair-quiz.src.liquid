@@ -1,0 +1,252 @@
+{% comment %} cliCHair Hair Quiz v5 (blocco unico) {% endcomment %}
+{%- assign cq_lang = request.locale.iso_code | slice: 0, 2 | downcase -%}
+<style>
+.cq2{--cq-ink:var(--color-foreground,#1a1a1a);--cq-bg:var(--color-background,#fff);--cq-acc:#b3202a;--cq-line:color-mix(in srgb,var(--cq-ink) 14%,transparent);--cq-soft:color-mix(in srgb,var(--cq-ink) 5%,transparent);--cq-muted:color-mix(in srgb,var(--cq-ink) 66%,transparent);--cq-hi:inset 0 1px 0 rgba(255,255,255,.55);--cq-gl:linear-gradient(180deg,color-mix(in srgb,var(--cq-bg) 70%,transparent),color-mix(in srgb,var(--cq-bg) 36%,transparent));--cq-r:14px;--cq-g:12px;font-family:var(--font-body--family,system-ui,sans-serif);color:var(--cq-ink);width:100%}
+.cq2,.cq2 *{box-sizing:border-box}
+div:has(>.cq2){width:100%!important;max-width:100%!important;flex:1 1 100%;align-self:stretch}
+:where(.cq2) button{appearance:none;font:inherit;color:inherit;background:none;border:0;padding:0;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.cq2 :is(button,summary,textarea):focus,.cq2 h3:focus{outline:0}
+.cq2 :is(button,summary,textarea):focus-visible{outline:2px solid var(--cq-acc);outline-offset:3px}
+.cq2-toggle{width:100%;display:flex;align-items:center;gap:16px;padding:20px 2px;border-block:1px solid var(--cq-line)}
+.cq2-ico{width:40px;height:40px;flex:none;border-radius:50%;background:var(--cq-acc);display:grid;place-items:center}
+.cq2-tt{flex:1;min-width:0}
+.cq2-tt b{display:block;font-family:var(--font-heading--family,inherit);font-size:clamp(1.05rem,2vw,1.4rem);text-transform:uppercase;letter-spacing:.02em;line-height:1.15}
+.cq2-tt small{display:block;font-size:.86rem;color:var(--cq-muted);margin-top:4px;line-height:1.35}
+.cq2-cta,.cq2-btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;border-radius:999px;font-weight:600;font-size:.82rem;letter-spacing:.06em;text-transform:uppercase;transition:all .2s}
+.cq2-cta{flex:none;min-height:44px;padding:0 20px 0 22px;border:2px solid var(--cq-acc);white-space:nowrap;animation:cq2P 2.6s ease-out 1s infinite}
+.cq2-cta svg{color:var(--cq-acc);transform:rotate(-90deg);transition:transform .4s}
+.cq2-toggle:active .cq2-cta{background:var(--cq-acc);color:#fff}
+.cq2.open .cq2-cta{background:none;color:var(--cq-ink);border:1.5px solid;animation:none}
+.cq2.open .cq2-cta svg{color:inherit!important;transform:rotate(180deg)!important}
+@media (hover:hover){.cq2-toggle:hover .cq2-cta{background:var(--cq-acc);color:#fff}.cq2-toggle:hover .cq2-cta svg{color:#fff;transform:rotate(-90deg) translateY(3px)}.cq2.open .cq2-toggle:hover .cq2-cta{background:var(--cq-soft);color:var(--cq-ink)}}
+@keyframes cq2P{0%{box-shadow:0 0 0 0 #b3202a66}70%,to{box-shadow:0 0 0 12px #b3202a00}}
+.cq2-body{display:grid;grid-template-rows:0fr;transition:grid-template-rows .45s cubic-bezier(.2,.7,.2,1)}
+.cq2-body>div{overflow:hidden;min-height:0}
+.cq2.open .cq2-body{grid-template-rows:1fr}
+.cq2-wrap{max-width:720px;margin:0 auto;padding:32px 0 44px}
+.cq2-path{list-style:none;margin:0 0 28px;padding:0;display:grid;grid-template-columns:repeat(3,1fr);gap:var(--cq-g)}
+.cq2-path li{display:flex;align-items:flex-start;gap:10px;padding-top:12px;border-top:2px solid var(--cq-line);font-size:.8rem;line-height:1.3;color:var(--cq-muted);transition:all .3s}
+.cq2-path span{padding-top:3px}
+.cq2 i{font-style:normal}
+.cq2-path i{flex:none;width:22px;height:22px;border-radius:50%;border:1.5px solid var(--cq-line);display:grid;place-items:center;font-size:.72rem;font-weight:700}
+.cq2-path .is-on{color:var(--cq-ink);border-top-color:var(--cq-acc)}
+.cq2-path .is-on i{background:var(--cq-acc);border-color:var(--cq-acc);color:#fff}
+.cq2-path .is-done{border-top-color:var(--cq-ink)}
+.cq2-path .is-done i{background:var(--cq-ink);border-color:var(--cq-ink);color:var(--cq-bg)}
+.cq2-in{animation:cq2I .28s cubic-bezier(.2,.7,.2,1) both}
+@keyframes cq2I{from{opacity:0;transform:translateY(8px)}}
+.cq2-stage{scroll-margin-top:110px}
+.cq2-prog,.cq2-mode,.cq2-how h4{letter-spacing:.06em;text-transform:uppercase;color:var(--cq-muted);font-size:.76rem}
+.cq2-prog{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:14px;margin:0 0 20px}
+.cq2-bar{height:3px;background:var(--cq-line);border-radius:3px;overflow:hidden}
+.cq2-bar i{display:block;height:100%;background:var(--cq-acc);transition:width .4s cubic-bezier(.2,.7,.2,1)}
+.cq2-q{font-family:var(--font-heading--family,inherit);font-size:clamp(1.3rem,2.4vw,1.7rem);font-weight:700;line-height:1.2;margin:0 0 6px}
+.cq2-qs{margin:0 0 8px;font-size:.95rem;line-height:1.45;color:var(--cq-muted)}
+.cq2-mode{margin:0 0 18px;font-size:.72rem}
+.cq2-opts{display:grid;gap:var(--cq-g)}
+.cq2-opt{display:flex;align-items:center;gap:12px;width:100%;min-height:56px;padding:14px 16px;border:1px solid var(--cq-line);border-radius:var(--cq-r);background:var(--cq-gl);box-shadow:var(--cq-hi);font-size:.95rem;line-height:1.35;transition:all .2s,transform .15s;-webkit-backdrop-filter:blur(6px) saturate(140%);backdrop-filter:blur(6px) saturate(140%)}
+@media (hover:hover){.cq2-opt:hover{border-color:color-mix(in srgb,var(--cq-ink) 38%,transparent);background:color-mix(in srgb,var(--cq-bg) 85%,transparent);box-shadow:inset 0 1px 0 #fffc,0 8px 22px -12px #0004}}
+.cq2-opt:active,.cq2-btn:active{transform:scale(.985)}
+@media (hover:none){.cq2-opt:active{background:var(--cq-soft)}}
+.cq2-opt[aria-pressed=true]{border-color:var(--cq-ink);background:color-mix(in srgb,var(--cq-acc) 5%,var(--cq-bg));box-shadow:inset 0 0 0 1px var(--cq-ink),var(--cq-hi)}
+.cq2-dot{flex:none;width:20px;height:20px;border-radius:50%;border:1.5px solid color-mix(in srgb,var(--cq-ink) 30%,transparent);display:grid;place-items:center;transition:all .2s}
+.is-multi .cq2-dot{border-radius:6px}
+[aria-pressed=true] .cq2-dot{background:var(--cq-acc);border-color:var(--cq-acc);animation:cq2D .22s}
+[aria-pressed=true] .cq2-dot:after{content:"";width:7px;height:7px;border-radius:50%;background:#fff}
+.is-multi [aria-pressed=true] .cq2-dot:after{width:10px;height:6px;border-radius:0;background:none;border:solid #fff;border-width:0 0 2px 2px;transform:translateY(-1px) rotate(-45deg)}
+@keyframes cq2D{from{transform:scale(.6)}}
+.cq2-lab{flex:1;min-width:0}
+.cq2-nav{display:grid;grid-template-columns:1fr auto;align-items:center;gap:var(--cq-g);margin-top:28px;min-height:52px}
+.cq2-navl{display:flex;gap:20px}
+.cq2-navl.is-off{visibility:hidden}
+.cq2-link,.cq2 summary{padding:8px 0;font-size:.88rem;color:var(--cq-muted);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+@media (hover:hover){.cq2-link:hover{color:var(--cq-ink)}}
+.cq2-btn{min-height:52px;padding:0 26px;border:1.5px solid var(--cq-ink);background:var(--cq-ink);color:var(--cq-bg);text-align:center;line-height:1.2;box-shadow:inset 0 1px 0 #fff3}
+.cq2-btn:disabled{opacity:.3;cursor:not-allowed;transform:none}
+.cq2-next{min-width:180px}
+.cq2 .acc{background:var(--cq-acc);border-color:var(--cq-acc);color:#fff;box-shadow:inset 0 1px 0 #fff5,0 10px 24px -14px #b3202acc}
+.cq2 .line{background:none;color:var(--cq-ink);border-color:color-mix(in srgb,var(--cq-ink) 40%,transparent);box-shadow:var(--cq-hi)}
+@media (hover:hover){.cq2-btn:not(:disabled):hover{filter:brightness(1.08)}.cq2 .acc:hover{box-shadow:inset 0 1px 0 #fff6,0 14px 28px -12px #b3202ad9}.cq2 .line:hover{filter:none;border-color:var(--cq-ink);background:var(--cq-soft)}}
+.cq2 .sm{min-height:40px;padding:0 18px;font-size:.76rem}
+.cq2-chips{list-style:none;margin:14px 0 18px;padding:0;display:flex;flex-wrap:wrap;gap:8px}
+.cq2-chips li{font-size:.82rem;padding:6px 12px;border:1px solid var(--cq-line);border-radius:999px;background:var(--cq-gl)}
+.cq2-chips b{font-weight:600}
+.cq2-lead{margin:0 0 20px;font-size:.98rem;line-height:1.5}
+.cq2-how{margin:0 0 20px;padding:18px 20px;border:1px solid var(--cq-line);border-radius:var(--cq-r);background:var(--cq-gl);box-shadow:var(--cq-hi)}
+.cq2-how h4{margin:0 0 12px;font-weight:600}
+.cq2-how ol{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.cq2-how li{display:grid;grid-template-columns:24px 1fr;gap:12px;align-items:start;font-size:.95rem;line-height:1.45}
+.cq2-how li i{width:24px;height:24px;border-radius:50%;background:var(--cq-acc);color:#fff;display:grid;place-items:center;font-size:.75rem;font-weight:700;margin-top:-1px}
+.cq2 kbd{font:inherit;font-weight:600;padding:1px 7px;border:1px solid var(--cq-line);border-bottom-width:2px;border-radius:6px;white-space:nowrap}
+.cq2-acts,.cq2-confirm div{display:grid;grid-template-columns:1fr 1fr;gap:var(--cq-g)}
+.cq2-acts .cq2-btn{width:100%}
+.cq2-status,.cq2-confirm{margin-top:14px;padding:14px 16px;border:1px solid var(--cq-line);border-radius:var(--cq-r);font-size:.93rem;line-height:1.45;display:grid;gap:12px}
+.cq2-status[hidden]{display:none}
+.cq2 .is-warn,.cq2-confirm{border-color:var(--cq-acc);background:color-mix(in srgb,var(--cq-acc) 6%,transparent)}
+.cq2-status .cq2-btn{justify-self:start}
+.cq2-confirm{margin:0}
+.cq2-nav .cq2-confirm{grid-column:1/-1}
+.cq2-confirm p{margin:0}
+.cq2 details{margin-top:22px}
+.cq2 summary{display:inline-block;list-style:none}
+.cq2 summary::-webkit-details-marker{display:none}
+.cq2-msg{display:block;width:100%;min-height:220px;margin:10px 0 12px;border:1px solid var(--cq-line);border-radius:var(--cq-r);padding:14px;font:inherit;font-size:.84rem;line-height:1.45;background:none;color:inherit;resize:vertical}
+@media (min-width:640px){.cq2-opts{grid-auto-rows:1fr}.cq2 .c2{grid-template-columns:repeat(2,minmax(0,1fr))}.cq2 .c3{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:639px){.cq2-toggle{gap:12px;padding:16px 0;flex-wrap:wrap}.cq2-tt{flex:1 1 0}.cq2-ico{width:34px;height:34px}.cq2-cta{width:100%;min-height:48px;font-size:.84rem}.cq2.open .cq2-cta{width:36px;min-height:36px;padding:0;gap:0}.cq2.open .cq2-cta span{display:none}.cq2-wrap{padding:24px 0 32px}.cq2-path{gap:8px;margin-bottom:22px}.cq2-path li{flex-direction:column;gap:6px;font-size:.74rem}.cq2-nav{grid-template-columns:1fr;gap:6px}.cq2-next{order:-1;width:100%}.cq2-navl{justify-content:space-between}.cq2-acts,.cq2-confirm div{grid-template-columns:1fr}.cq2-how{padding:16px}}
+@media (prefers-reduced-motion:reduce){.cq2 *{animation:none!important;transition:none!important}}
+</style>
+<div class="cq2" id="cq2-root" data-lang="{{ cq_lang }}"><button type="button" class="cq2-toggle" id="cq2-toggle" aria-expanded="false" aria-controls="cq2-body"><span class="cq2-ico" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="M6 20c0-6 2-9 5-11s5-5 3-7M12 20c0-5 1.5-7 4-9s3-4 2-6M8 4c-2 3-3 6-3 9"/></svg></span><span class="cq2-tt"><b data-t="ask"></b><small data-t="ask2"></small></span><span class="cq2-cta"><span data-t="cta"></span><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span></button><div class="cq2-body" id="cq2-body"><div><div class="cq2-wrap"><ol class="cq2-path" id="cq2-path"></ol><div class="cq2-stage" id="cq2-stage"></div></div></div></div></div>
+<script>
+(function init(){
+var ROOT=document.getElementById('cq2-root');if(!ROOT){if(document.readyState=='loading')document.addEventListener('DOMContentLoaded',init);return;}
+var ZC='[data-zipchat="bubble-icon"],#bubble-icon';
+var QS=[
+{k:'tex',o:['straight','wavy','curly','coily']},
+{k:'hair',o:['fineflat','average','thickfull']},
+{k:'colhist',o:['natural','colored','greycover','lightened','bleached','keratin','perm','heat'],m:1,x:'natural'},
+{k:'cond',o:['healthy','dry','frizz','damaged','split','dull'],m:1,x:'healthy'},
+{k:'scalp',o:['normal','oily','dryscalp','dandruff','sensitive','thin'],m:1,x:'normal',ex:{oily:'dryscalp',dryscalp:'oily'}},
+{k:'goal',o:['repair','hydrate','smooth','curl','colorprotect','antiyellow','volume','scalpbal','loss','shine'],m:1,max:2,ex:{smooth:'curl',curl:'smooth'}},
+{k:'budget',o:['essential','complete','full']}
+];
+// Testi: q e o seguono l'ordine di QS; L del prompt: tex,hair,colhist,cond,scalp,goal,budget
+var T={
+en:{ask2:'Prepare your profile for clichAIr in 1 minute',cont:'Resume your Hair Quiz',cta:'Start the quiz',resume:'Resume',ctaDone:'View request',close:'Close',
+path:['Answer 7 questions','Copy the request into the chat','clichAIr recommends your routine'],
+next:'Next',back:'Back',finish:'Prepare my request',step:'Question',of:'of',single:'One answer',multi:'Select all that apply',max2:'Up to 2 answers',restart:'Start again',
+sumProg:'Request ready',sumT:'Your hair profile',lead:'Your request for clichAIr is ready. clichAIr will recommend your routine in the chat, after reading the ingredients of our products.',
+howT:'What happens next',how1:'Press “Copy and open clichAIr”: we copy the request and open the chat.',how2:'In the message field, paste with [K].',how2t:'Press and hold the message field and choose Paste.',how3:'Send it: clichAIr replies with the recommended routine.',
+open:'Copy and open clichAIr',cp:'Request copied.',pst:'Paste it into the chat field and send it.',noChat:'The chat did not open by itself: open it from the clichAIr icon at the bottom of the screen.',
+copyFail:'We could not copy the request automatically. It is below, already selected: copy it ([C]), then open the chat and paste it.',ct:'press and hold the text and choose Copy',openChat:'Open clichAIr',
+showMsg:'Show the message for clichAIr',copyAgain:'Copy again',copied:'Copied',confirmQ:'Start again? The answers you have given will be deleted.',confirmYes:'Yes, start again',confirmNo:'Cancel',
+q:[['Texture','How does your hair dry with no heat and no products?'],['Your hair','Which description fits best?'],['Colour and treatments','What has your hair been through? Colour, and anything in the last 6 months.'],['Your hair today','How do your hair and ends look and feel?'],['Scalp','Does your scalp have any of these?'],['Your goal','What matters most to you right now?'],['Your routine','How many products are you happy to use?']],
+o:['Straight','Wavy','Curly','Coily or afro','Fine and flat','Average','Thick and full','Natural, never coloured','Coloured, same tone or darker','Coloured to cover greys','Highlights or balayage','Bleached all over','Keratin or smoothing treatment','Perm','Heat styling 3+ times a week','Healthy, no issues','Dry','Frizzy','Breaks easily','Split ends','Dull, no shine','Normal, no issues','Oily, greasy fast','Dry, feels tight','Dandruff','Sensitive or itchy','Thinning hair','Repair and strengthen','Hydration','Anti-frizz and smoothness','Defined curls','Colour that lasts','No yellow tones','Volume and body','A calmer, balanced scalp','Fuller-looking hair','Shine and softness','Minimal (2 products)','Complete (3 to 4 products)','Full ritual (5 or more)'],
+p:{hi:'Hi clichAIr! I just completed the hair quiz on cliCHair.ch. Here is my profile: please analyse it and recommend the right routine for me.',prof:'MY HAIR PROFILE',L:['Natural texture','Hair type','Colour and treatments','Hair condition','Scalp','MAIN GOAL','ROUTINE SIZE'],n:{essential:'exactly 2 products',complete:'3 or 4 products',full:'at least 5 products'},ask:'WHAT I NEED FROM YOU',steps:['Analyse the INCI of the products in the cliCHair catalogue and pick only those that truly fit my profile and goal.','Build a routine of [N]: pick first the steps that matter most for my profile (cleansing, treatment, leave-in or styling, scalp care). For each product give the exact name, why it fits (the relevant INCI actives), how to use it and how often. If other products would help, mention them after the routine only as optional extras, not counted in the routine.','Tell me what to avoid, and give one alternative for the main step.','Reply in English, clearly and concisely, with links to the products.']}},
+it:{ask2:'In 1 minuto prepari il tuo profilo per clichAIr',cont:'Riprendi il tuo Hair Quiz',cta:'Inizia il quiz',resume:'Riprendi',ctaDone:'Vedi la richiesta',close:'Chiudi',
+path:['Rispondi a 7 domande','Copia la richiesta nella chat','clichAIr ti consiglia la routine'],
+next:'Avanti',back:'Indietro',finish:'Prepara la richiesta',step:'Domanda',of:'di',single:'Una sola risposta',multi:'Più risposte possibili',max2:'Fino a 2 risposte',restart:'Ricomincia',
+sumProg:'Richiesta pronta',sumT:'Il tuo profilo capelli',lead:'La tua richiesta per clichAIr è pronta. La routine te la consiglierà clichAIr in chat, dopo aver letto gli ingredienti dei nostri prodotti.',
+howT:'Come continuare',how1:'Premi «Copia e apri clichAIr»: copiamo la richiesta e apriamo la chat.',how2:'Nel campo del messaggio incolla con [K].',how2t:'Tieni premuto il campo del messaggio e scegli Incolla.',how3:'Invia il messaggio: clichAIr ti risponde con la routine consigliata.',
+open:'Copia e apri clichAIr',cp:'Richiesta copiata.',pst:'Incollala nel campo della chat e inviala.',noChat:'La chat non si è aperta da sola: aprila dall’icona di clichAIr in basso sullo schermo.',
+copyFail:'Non siamo riusciti a copiare la richiesta in automatico. La trovi qui sotto, già selezionata: copiala ([C]), poi apri la chat e incollala.',ct:'tieni premuto il testo e scegli Copia',openChat:'Apri clichAIr',
+showMsg:'Mostra il messaggio per clichAIr',copyAgain:'Copia di nuovo',copied:'Copiato',confirmQ:'Vuoi ricominciare? Le risposte date finora verranno cancellate.',confirmYes:'Sì, ricomincia',confirmNo:'Annulla',
+q:[['Texture','Come si asciugano i tuoi capelli senza calore e senza prodotti?'],['I tuoi capelli','Quale descrizione ti somiglia di più?'],['Colore e trattamenti','Cosa hanno passato i tuoi capelli? Il colore, e tutto quello degli ultimi 6 mesi.'],['I tuoi capelli oggi','Come sono capelli e punte, alla vista e al tatto?'],['Cute','La tua cute ha uno di questi problemi?'],['Il tuo obiettivo','Cosa conta di più per te adesso?'],['La tua routine','Quanti prodotti vuoi usare?']],
+o:['Lisci','Mossi','Ricci','Ricci stretti o afro','Fini e piatti','Nella media','Spessi e folti','Naturali, mai colorati','Colorati, stesso tono o più scuro','Colorati per coprire i bianchi','Meches o balayage','Decolorati su tutta la testa','Cheratina o trattamento lisciante','Permanente','Piastra o phon 3+ volte a settimana','Sani, nessun problema','Secchi','Crespi','Si spezzano facilmente','Doppie punte','Spenti, senza luce','Normale, nessun problema','Grassa, si sporca in fretta','Secca, tira','Forfora','Sensibile o prude','Capelli che si diradano','Riparare e rinforzare','Idratazione','Anticrespo e liscio','Ricci definiti','Colore che dura','Niente riflessi gialli','Volume e corpo','Cute più calma ed equilibrata','Chioma più piena','Luminosità e morbidezza','Minima (2 prodotti)','Completa (3-4 prodotti)','Rituale completo (5 o più)'],
+p:{hi:'Ciao clichAIr! Ho appena completato il quiz capelli su cliCHair.ch. Ecco il mio profilo: analizzalo e consigliami la routine giusta per me.',prof:'IL MIO PROFILO CAPELLI',L:['Texture naturale','Tipo di capello','Colore e trattamenti','Stato dei capelli','Cute','OBIETTIVO PRINCIPALE','AMPIEZZA DELLA ROUTINE'],n:{essential:'esattamente 2 prodotti',complete:'3 o 4 prodotti',full:'almeno 5 prodotti'},ask:'COSA TI CHIEDO',steps:['Analizza gli INCI dei prodotti del catalogo cliCHair e scegli solo quelli davvero adatti al mio profilo e al mio obiettivo.','Costruisci una routine di [N]: scegli prima gli step più importanti per il mio profilo (detersione, trattamento, leave-in o styling, cura della cute). Per ogni prodotto indica il nome esatto, perché è adatto (gli attivi INCI rilevanti), come usarlo e con quale frequenza. Se altri prodotti potrebbero aiutare, citali dopo la routine solo come extra facoltativi, senza contarli nella routine.','Dimmi cosa evitare e proponi un’alternativa per lo step principale.','Rispondi in italiano, in modo chiaro e sintetico, con i link ai prodotti.']}},
+de:{ask2:'In 1 Minute bereiten Sie Ihr Profil für clichAIr vor',cont:'Ihr Hair Quiz fortsetzen',cta:'Quiz starten',resume:'Fortsetzen',ctaDone:'Anfrage ansehen',close:'Schliessen',
+path:['7 Fragen beantworten','Anfrage in den Chat kopieren','clichAIr empfiehlt Ihre Routine'],
+next:'Weiter',back:'Zurück',finish:'Anfrage vorbereiten',step:'Frage',of:'von',single:'Eine Antwort',multi:'Mehrere Antworten möglich',max2:'Bis zu 2 Antworten',restart:'Neu starten',
+sumProg:'Anfrage bereit',sumT:'Ihr Haarprofil',lead:'Ihre Anfrage an clichAIr ist bereit. Die Routine empfiehlt Ihnen clichAIr im Chat, nachdem es die Inhaltsstoffe unserer Produkte gelesen hat.',
+howT:'So geht es weiter',how1:'Drücken Sie „Kopieren und clichAIr öffnen“: Wir kopieren die Anfrage und öffnen den Chat.',how2:'Fügen Sie sie im Nachrichtenfeld mit [K] ein.',how2t:'Halten Sie das Nachrichtenfeld gedrückt und wählen Sie Einfügen.',how3:'Senden Sie die Nachricht: clichAIr antwortet mit der empfohlenen Routine.',
+open:'Kopieren und clichAIr öffnen',cp:'Anfrage kopiert.',pst:'Fügen Sie sie im Chatfeld ein und senden Sie sie ab.',noChat:'Der Chat hat sich nicht von selbst geöffnet: Öffnen Sie ihn über das clichAIr-Symbol unten auf dem Bildschirm.',
+copyFail:'Wir konnten die Anfrage nicht automatisch kopieren. Sie steht unten und ist bereits markiert: Kopieren Sie sie ([C]), öffnen Sie dann den Chat und fügen Sie sie ein.',ct:'Text gedrückt halten und Kopieren wählen',openChat:'clichAIr öffnen',
+showMsg:'Nachricht an clichAIr anzeigen',copyAgain:'Erneut kopieren',copied:'Kopiert',confirmQ:'Neu starten? Ihre bisherigen Antworten werden gelöscht.',confirmYes:'Ja, neu starten',confirmNo:'Abbrechen',
+q:[['Struktur','Wie trocknet Ihr Haar ohne Hitze und ohne Produkte?'],['Ihr Haar','Welche Beschreibung passt am besten?'],['Farbe und Behandlungen','Was hat Ihr Haar hinter sich? Die Farbe, und alles aus den letzten 6 Monaten.'],['Ihr Haar heute','Wie sehen Haar und Spitzen aus, wie fühlen sie sich an?'],['Kopfhaut','Hat Ihre Kopfhaut eines dieser Probleme?'],['Ihr Ziel','Was ist Ihnen gerade am wichtigsten?'],['Ihre Routine','Wie viele Produkte möchten Sie verwenden?']],
+o:['Glatt','Wellig','Lockig','Kraus oder Afro','Fein und platt','Durchschnittlich','Dick und voll','Natur, nie gefärbt','Gefärbt, gleicher Ton oder dunkler','Gefärbt zur Grauabdeckung','Strähnen oder Balayage','Komplett blondiert','Keratin oder Glättungsbehandlung','Dauerwelle','Hitzestyling 3+ Mal pro Woche','Gesund, keine Probleme','Trocken','Frizzig','Bricht leicht','Spliss','Stumpf, ohne Glanz','Normal, keine Probleme','Fettig, schnell nachfettend','Trocken, spannt','Schuppen','Empfindlich oder juckend','Dünner werdendes Haar','Reparieren und stärken','Feuchtigkeit','Anti-Frizz und Glätte','Definierte Locken','Farbe, die hält','Kein Gelbstich','Volumen und Fülle','Ruhigere, ausgeglichene Kopfhaut','Voller wirkendes Haar','Glanz und Geschmeidigkeit','Minimal (2 Produkte)','Komplett (3-4 Produkte)','Volles Ritual (5 oder mehr)'],
+p:{hi:'Hallo clichAIr! Ich habe gerade das Haar-Quiz auf cliCHair.ch gemacht. Hier ist mein Profil: bitte analysiere es und empfiehl mir die richtige Routine.',prof:'MEIN HAARPROFIL',L:['Natürliche Struktur','Haartyp','Farbe und Behandlungen','Haarzustand','Kopfhaut','HAUPTZIEL','UMFANG DER ROUTINE'],n:{essential:'genau 2 Produkten',complete:'3 oder 4 Produkten',full:'mindestens 5 Produkten'},ask:'WAS ICH VON DIR BRAUCHE',steps:['Analysiere die INCI der Produkte im cliCHair-Katalog und wähle nur die, die wirklich zu meinem Profil und Ziel passen.','Erstelle eine Routine mit [N]: wähle zuerst die Schritte, die für mein Profil am wichtigsten sind (Reinigung, Pflege, Leave-in oder Styling, Kopfhautpflege). Nenne pro Produkt den genauen Namen, warum es passt (relevante INCI-Wirkstoffe), Anwendung und Häufigkeit. Wenn weitere Produkte helfen würden, nenne sie nach der Routine nur als optionale Extras, ohne sie mitzuzählen.','Sag mir, was ich vermeiden soll, und nenne eine Alternative für den wichtigsten Schritt.','Antworte auf Deutsch, klar und knapp, mit Links zu den Produkten.']}},
+fr:{ask2:'En 1 minute, préparez votre profil pour clichAIr',cont:'Reprendre votre Hair Quiz',cta:'Commencer le quiz',resume:'Reprendre',ctaDone:'Voir la demande',close:'Fermer',
+path:['Répondez à 7 questions','Copiez la demande dans le chat','clichAIr vous conseille la routine'],
+next:'Suivant',back:'Retour',finish:'Préparer ma demande',step:'Question',of:'sur',single:'Une seule réponse',multi:'Plusieurs réponses possibles',max2:'2 réponses maximum',restart:'Recommencer',
+sumProg:'Demande prête',sumT:'Votre profil capillaire',lead:'Votre demande pour clichAIr est prête. clichAIr vous conseillera la routine dans le chat, après avoir lu les ingrédients de nos produits.',
+howT:'Pour continuer',how1:'Appuyez sur « Copier et ouvrir clichAIr » : nous copions la demande et ouvrons le chat.',how2:'Dans le champ du message, collez avec [K].',how2t:'Appuyez longuement sur le champ du message et choisissez Coller.',how3:'Envoyez-le : clichAIr vous répond avec la routine conseillée.',
+open:'Copier et ouvrir clichAIr',cp:'Demande copiée.',pst:'Collez-la dans le champ du chat et envoyez-la.',noChat:'Le chat ne s’est pas ouvert tout seul : ouvrez-le depuis l’icône clichAIr en bas de l’écran.',
+copyFail:'Nous n’avons pas pu copier la demande automatiquement. Elle se trouve ci-dessous, déjà sélectionnée : copiez-la ([C]), puis ouvrez le chat et collez-la.',ct:'appuyez longuement sur le texte et choisissez Copier',openChat:'Ouvrir clichAIr',
+showMsg:'Afficher le message pour clichAIr',copyAgain:'Copier à nouveau',copied:'Copié',confirmQ:'Recommencer ? Les réponses données jusqu’ici seront effacées.',confirmYes:'Oui, recommencer',confirmNo:'Annuler',
+q:[['Texture','Comment vos cheveux sèchent-ils sans chaleur ni produits ?'],['Vos cheveux','Quelle description vous correspond le mieux ?'],['Couleur et traitements','Qu’ont vécu vos cheveux ? La couleur, et tout ce qui s’est passé ces 6 derniers mois.'],['Vos cheveux aujourd’hui','Comment sont vos cheveux et vos pointes ?'],['Cuir chevelu','Votre cuir chevelu présente-t-il l’un de ces problèmes ?'],['Votre objectif','Qu’est-ce qui compte le plus pour vous en ce moment ?'],['Votre routine','Combien de produits souhaitez-vous utiliser ?']],
+o:['Lisses','Ondulés','Bouclés','Crépus ou afro','Fins et plats','Dans la moyenne','Épais et denses','Naturels, jamais colorés','Colorés, même ton ou plus foncé','Colorés pour couvrir les blancs','Mèches ou balayage','Décolorés sur toute la tête','Kératine ou lissage','Permanente','Chaleur 3 fois par semaine ou plus','Sains, aucun problème','Secs','Frisottis','Cassent facilement','Pointes fourchues','Ternes, sans éclat','Normal, aucun problème','Gras, regraisse vite','Sec, qui tire','Pellicules','Sensible ou démangeaisons','Cheveux qui s’éclaircissent','Réparer et fortifier','Hydratation','Anti-frisottis et lissage','Boucles définies','Une couleur qui dure','Pas de reflets jaunes','Volume et corps','Un cuir chevelu plus calme et équilibré','Une chevelure plus dense','Brillance et douceur','Minimale (2 produits)','Complète (3-4 produits)','Rituel complet (5 ou plus)'],
+p:{hi:'Bonjour clichAIr ! Je viens de faire le quiz cheveux sur cliCHair.ch. Voici mon profil : analysez-le et conseillez-moi la bonne routine.',prof:'MON PROFIL CAPILLAIRE',L:['Texture naturelle','Type de cheveux','Couleur et traitements','État des cheveux','Cuir chevelu','OBJECTIF PRINCIPAL','TAILLE DE LA ROUTINE'],n:{essential:'exactement 2 produits',complete:'3 ou 4 produits',full:'au moins 5 produits'},ask:'CE QUE J’ATTENDS DE VOUS',steps:['Analysez les INCI des produits du catalogue cliCHair et ne retenez que ceux qui conviennent vraiment à mon profil et à mon objectif.','Construisez une routine avec [N] : choisissez d’abord les étapes les plus importantes pour mon profil (nettoyage, soin, leave-in ou coiffage, soin du cuir chevelu). Pour chaque produit : nom exact, pourquoi il convient (actifs INCI pertinents), mode d’emploi et fréquence. Si d’autres produits peuvent aider, citez-les après la routine uniquement comme extras facultatifs, sans les compter dans la routine.','Dites-moi ce qu’il faut éviter et proposez une alternative pour l’étape principale.','Répondez en français, de façon claire et concise, avec les liens vers les produits.']}}
+};
+var L=T[ROOT.getAttribute('data-lang')]||T.en,N=QS.length,OI={},QI={},c=0;
+QS.forEach(function(q,i){QI[q.k]=i;q.o.forEach(function(o){OI[o]=c++;});});
+var KEY='cq_state_v3',S={};try{S=JSON.parse(localStorage.getItem(KEY)||'{}')||{};}catch(e){}
+var step=typeof S._step=='number'?S._step:-1;
+function mq(s){return !!(window.matchMedia&&matchMedia(s).matches);}
+var RM=mq('(prefers-reduced-motion: reduce)');
+var PLAT=mq('(hover: none) and (pointer: coarse)')?'touch':(/Mac|iPhone|iPad/.test(navigator.platform||navigator.userAgent)?'mac':'win');
+var MK=PLAT=='mac'?'⌘ Cmd+':'Ctrl+';
+var STAGE=$('cq2-stage'),PREV=0,CHATTED=false;
+function $(id){return document.getElementById(id);}
+function save(){try{S._step=step;localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return '&#'+c.charCodeAt(0)+';';});}
+function lab(k){return L.o[OI[k]]||k;}
+function arr(v){return v?(Array.isArray(v)?v:[v]):[];}
+function has(k,v){return arr(S[k]).indexOf(v)>-1;}
+function valid(q){return arr(S[q.k]).length>0;}
+function answered(){return QS.some(valid);}
+function short(v){return lab(v).replace(/\s*\([^)]*\)/g,'');}
+function btn(id,cls,t){return '<button type="button" class="'+cls+'" id="'+id+'">'+esc(t)+'</button>';}
+function isOpen(){return ROOT.classList.contains('open');}
+function head(){var a=ROOT.querySelector('[data-t=ask]'),b=ROOT.querySelector('[data-t=ask2]'),mid=step>=0&&step<N&&(step>0||answered());
+ROOT.querySelector('[data-t=cta]').textContent=isOpen()?L.close:(step>=N?L.ctaDone:(mid?L.resume:L.cta));
+a.textContent=!isOpen()&&mid?L.cont:'Hair Quiz';
+b.textContent=isOpen()?L.ask2:(mid?L.step+' '+(step+1)+' '+L.of+' '+N:(step>=N?L.sumProg:L.ask2));}
+function path(){var ph=step>=N?(CHATTED?2:1):0,h='';
+L.path.forEach(function(t,i){h+='<li class="'+(i<ph?'is-done':(i==ph?'is-on':''))+'"'+(i==ph?' aria-current="step"':'')+'><i>'+(i<ph?'&#10003;':i+1)+'</i><span>'+esc(t)+'</span></li>';});
+$('cq2-path').innerHTML=h;}
+function bar(label,now){return '<div class="cq2-in"><div class="cq2-prog"><span>'+esc(label)+'</span><div class="cq2-bar" role="progressbar" aria-valuemin="0" aria-valuemax="'+N+'" aria-valuenow="'+now+'" aria-label="'+esc(label)+'"><i style="width:'+PREV+'%"></i></div></div>';}
+function animateBar(pct){var i=STAGE.querySelector('.cq2-bar i');if(RM)i.style.width=pct+'%';else requestAnimationFrame(function(){requestAnimationFrame(function(){i.style.width=pct+'%';});});PREV=pct;}
+function moved(focus){var h=STAGE.querySelector('.cq2-q'),r=STAGE.getBoundingClientRect();if(!focus)return;
+try{h.focus({preventScroll:true});}catch(e){}
+if(r.top<0||r.top>innerHeight*.6)STAGE.scrollIntoView({behavior:RM?'auto':'smooth',block:'start'});}
+function askReset(box,cancel){if(!answered()){reset();return;}
+box.innerHTML='<div class="cq2-confirm" role="group" aria-labelledby="cq2-cq"><p id="cq2-cq">'+esc(L.confirmQ)+'</p><div>'+btn('cq2-no','cq2-btn line',L.confirmNo)+btn('cq2-yes','cq2-btn',L.confirmYes)+'</div></div>';
+$('cq2-no').onclick=cancel;$('cq2-yes').onclick=reset;$('cq2-no').focus();}
+function reset(){S={};step=0;CHATTED=false;PREV=0;save();render(true);}
+function render(focus){if(step<0)step=0;path();head();
+if(step>=N){summary(focus);return;}
+var q=QS[step],pct=Math.round(step/N*100),h=bar(L.step+' '+(step+1)+' '+L.of+' '+N,step);
+h+='<h3 class="cq2-q" id="cq2-q" tabindex="-1">'+esc(L.q[step][0])+'</h3><p class="cq2-qs">'+esc(L.q[step][1])+'</p><p class="cq2-mode">'+esc(q.m?(q.max?L.max2:L.multi):L.single)+'</p><div class="cq2-opts '+(q.o.length%3?'c2':'c3')+(q.m?' is-multi':'')+'" role="group" aria-labelledby="cq2-q">';
+q.o.forEach(function(o){h+='<button type="button" class="cq2-opt" data-v="'+o+'" aria-pressed="'+has(q.k,o)+'"><span class="cq2-dot" aria-hidden="true"></span><span class="cq2-lab">'+esc(lab(o))+'</span></button>';});
+h+='</div><div class="cq2-nav" id="cq2-nav"><span class="cq2-navl'+(step||answered()?'':' is-off')+'"><button type="button" class="cq2-link" id="cq2-back"'+(step?'':' hidden')+'>'+esc(L.back)+'</button>'+btn('cq2-reset','cq2-link',L.restart)+'</span>'+btn('cq2-next','cq2-btn cq2-next',step==N-1?L.finish:L.next)+'</div></div>';
+STAGE.innerHTML=h;$('cq2-next').disabled=!valid(q);animateBar(pct);
+STAGE.querySelectorAll('.cq2-opt').forEach(function(b){b.onclick=function(){pick(q,b.getAttribute('data-v'));};});
+$('cq2-back').onclick=function(){if(step>0){step--;save();render(true);}};
+$('cq2-next').onclick=function(){if(valid(q)){step++;save();render(true);}};
+$('cq2-reset').onclick=function(){askReset($('cq2-nav'),function(){render(false);$('cq2-reset').focus();});};
+moved(focus);}
+function pick(q,v){
+if(q.m){var a=arr(S[q.k]).slice(),i=a.indexOf(v);
+if(i>-1)a.splice(i,1);else{if(v==q.x)a=[];else a=a.filter(function(z){return z!=q.x&&!(q.ex&&q.ex[v]==z);});if(q.max&&a.length>=q.max)a.shift();a.push(v);}
+S[q.k]=a;}
+else S[q.k]=S[q.k]==v?null:v;
+save();
+STAGE.querySelectorAll('.cq2-opt').forEach(function(b){b.setAttribute('aria-pressed',has(q.k,b.getAttribute('data-v')));});
+$('cq2-next').disabled=!valid(q);
+STAGE.querySelector('.cq2-navl').classList.toggle('is-off',!step&&!answered());
+head();}
+function prompt(){var p=L.p,o=[p.hi,'',p.prof],b=S.budget||'complete';
+QS.slice(0,5).forEach(function(q,i){var v=arr(S[q.k]);if(v.length)o.push('- '+p.L[i]+': '+v.map(lab).join(', '));});
+o.push('',p.L[5]+': '+arr(S.goal).map(lab).join(', '),p.L[6]+': '+lab(b),'',p.ask);
+p.steps.forEach(function(s,i){o.push((i+1)+'. '+s.replace('[N]',p.n[b]));});
+return o.join('\n');}
+function openChat(){var el=document.querySelector(ZC),all=document.querySelectorAll('*');
+for(var i=0;i<all.length&&!el;i++)if(all[i].shadowRoot)el=all[i].shadowRoot.querySelector(ZC);
+if(el){try{el.click();return true;}catch(e){}}return false;}
+function summary(focus){
+var txt=prompt(),h=bar(L.sumProg,N)+'<h3 class="cq2-q" tabindex="-1">'+esc(L.sumT)+'</h3><ul class="cq2-chips">';
+QS.forEach(function(q,i){var v=arr(S[q.k]).filter(function(x){return x!='healthy'&&x!='normal';});
+if(v.length)h+='<li><b>'+esc(L.q[i][0])+':</b> '+esc(v.map(short).join(', '))+'</li>';});
+h+='</ul><p class="cq2-lead">'+esc(L.lead)+'</p><div class="cq2-how"><h4>'+esc(L.howT)+'</h4><ol>';
+[esc(L.how1),PLAT=='touch'?esc(L.how2t):esc(L.how2).replace('[K]','<kbd>'+MK+'V</kbd>'),esc(L.how3)].forEach(function(t,i){h+='<li><i>'+(i+1)+'</i><span>'+t+'</span></li>';});
+h+='</ol></div><div id="cq2-actbox"><div class="cq2-acts">'+btn('cq2-open','cq2-btn acc',L.open)+btn('cq2-restart','cq2-btn line',L.restart)+'</div></div>';
+h+='<div class="cq2-status" id="cq2-status" role="status" aria-live="polite" hidden></div>';
+h+='<details id="cq2-det"><summary>'+esc(L.showMsg)+'</summary><textarea class="cq2-msg" id="cq2-txt" readonly aria-label="'+esc(L.showMsg)+'">'+esc(txt)+'</textarea>'+btn('cq2-again','cq2-btn line sm',L.copyAgain)+'</details></div>';
+STAGE.innerHTML=h;animateBar(100);
+var st=$('cq2-status'),ta=$('cq2-txt'),det=$('cq2-det');
+function status(t,warn,x){st.innerHTML='<span>'+esc(t)+'</span>'+(x||'');st.className='cq2-status '+(warn?'is-warn':'is-ok');st.hidden=false;}
+function chat(){var ok=openChat();if(ok){CHATTED=true;path();}return ok;}
+function copy(ok,ko){
+var fb=function(){var r=false,was=det.open;try{det.open=true;ta.focus();ta.select();r=document.execCommand('copy');}catch(e){}if(r){det.open=was;ok();}else ko();};
+if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(txt).then(ok,fb);else fb();}
+function recover(){det.open=true;try{ta.focus({preventScroll:true});ta.select();}catch(e){}
+status(L.copyFail.replace('[C]',PLAT=='touch'?L.ct:MK+'C'),1,btn('cq2-go','cq2-btn line sm',L.openChat));
+$('cq2-go').onclick=function(){if(!chat())status(L.noChat,1);};}
+$('cq2-open').onclick=function(){copy(function(){var ok=chat();status(L.cp+' '+(ok?'':L.noChat+' ')+L.pst,!ok);},recover);};
+$('cq2-again').onclick=function(){var b=this;copy(function(){b.textContent=L.copied;setTimeout(function(){b.textContent=L.copyAgain;},1800);},recover);};
+$('cq2-restart').onclick=function(){askReset($('cq2-actbox'),function(){summary(false);$('cq2-restart').focus();});};
+moved(focus);}
+var TG=$('cq2-toggle');
+TG.onclick=function(){var o=!isOpen();ROOT.classList.toggle('open',o);TG.setAttribute('aria-expanded',o);if(o&&step<0){step=0;save();render(false);}head();};
+head();if(step>=0)render(false);
+})();
+</script>
